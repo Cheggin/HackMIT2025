@@ -26,7 +26,7 @@ export default function HeatmapComponent({ data }: HeatmapComponentProps) {
 
   const getCellValue = (location: string | undefined, hour: number | undefined) => {
     const cell = data.find(d => d.location === location && d.hour === hour);
-    return cell ? cell.value : 0;
+    return cell ? (cell.value ?? 0) : 0;
   };
 
   return (
@@ -58,7 +58,7 @@ export default function HeatmapComponent({ data }: HeatmapComponentProps) {
                         <div className="absolute hidden group-hover:block z-10 bg-posthog-bg-secondary border border-posthog-border rounded p-2 text-xs whitespace-nowrap -top-12 left-1/2 transform -translate-x-1/2">
                           <div className="text-posthog-text-primary">{location}</div>
                           <div className="text-posthog-text-secondary">{hour}:00</div>
-                          <div className="text-posthog-accent font-semibold">${value.toFixed(2)}</div>
+                          <div className="text-posthog-accent font-semibold">${value?.toFixed(2) ?? '0.00'}</div>
                         </div>
                       </div>
                     </div>
