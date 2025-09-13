@@ -2,7 +2,12 @@ import 'react';
 import { Brain, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 
-export default function ConstitutionToggle({ enabled, onToggle }) {
+interface ConstitutionToggleProps {
+  enabled: boolean;
+  onToggle: () => void;
+}
+
+export default function ConstitutionToggle({ enabled, onToggle }: ConstitutionToggleProps) {
   return (
     <div className="bg-posthog-bg-secondary border border-posthog-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">

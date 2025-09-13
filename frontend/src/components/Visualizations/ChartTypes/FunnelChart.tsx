@@ -8,13 +8,13 @@ interface FunnelComponentProps {
 export default function FunnelComponent({ data }: FunnelComponentProps) {
   if (!data || data.length === 0) return null;
 
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map(d => d.value ?? 0));
 
   return (
     <div className="w-full h-full flex items-center justify-center">
       <div className="w-full max-w-md">
         {data.map((item, index) => {
-          const widthPercentage = (item.value / maxValue) * 100;
+          const widthPercentage = ((item.value ?? 0) / maxValue) * 100;
           const isLast = index === data.length - 1;
 
           return (
@@ -45,11 +45,11 @@ export default function FunnelComponent({ data }: FunnelComponentProps) {
                       {item.name}
                     </span>
                     <span className="text-white/80 text-xs">
-                      {item.value.toLocaleString()}
+                      {(item.value ?? 0).toLocaleString()}
                     </span>
                   </div>
                   <span className="text-white text-lg font-bold">
-                    {item.percentage.toFixed(1)}%
+                    {(item.percentage ?? 0).toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -85,7 +85,7 @@ export default function FunnelComponent({ data }: FunnelComponentProps) {
                 <span className="text-posthog-text-secondary">{item.name}</span>
               </div>
               <span className="text-posthog-text-primary font-medium">
-                {item.value.toLocaleString()} ({item.percentage.toFixed(1)}%)
+                {(item.value ?? 0).toLocaleString()} ({(item.percentage ?? 0).toFixed(1)}%)
               </span>
             </div>
           ))}

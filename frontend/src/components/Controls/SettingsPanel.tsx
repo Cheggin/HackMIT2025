@@ -2,12 +2,19 @@ import { useState } from 'react';
 import { X, Zap, Clock, Bell, Download } from 'lucide-react';
 import { clsx } from 'clsx';
 
-export default function SettingsPanel({ isOpen, onClose, updateFrequency, onUpdateFrequency }) {
+interface SettingsPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  updateFrequency: number;
+  onUpdateFrequency: (frequency: number) => void;
+}
+
+export default function SettingsPanel({ isOpen, onClose, updateFrequency, onUpdateFrequency }: SettingsPanelProps) {
   const [frequency, setFrequency] = useState(updateFrequency / 1000);
   const [notifications, setNotifications] = useState(true);
   const [autoExport, setAutoExport] = useState(false);
 
-  const handleFrequencyChange = (value) => {
+  const handleFrequencyChange = (value: number) => {
     setFrequency(value);
     onUpdateFrequency(value * 1000);
   };

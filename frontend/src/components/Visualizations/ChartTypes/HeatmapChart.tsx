@@ -10,12 +10,12 @@ export default function HeatmapComponent({ data }: HeatmapComponentProps) {
 
   // Get unique locations and hours
   const locations = [...new Set(data.map(d => d.location))];
-  const hours = [...new Set(data.map(d => d.hour))].sort((a, b) => a - b);
+  const hours = [...new Set(data.map(d => d.hour))].sort((a, b) => (a ?? 0) - (b ?? 0));
 
   // Find max value for color scaling
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map(d => d.value ?? 0));
 
-  const getColor = (value) => {
+  const getColor = (value: number) => {
     const intensity = value / maxValue;
     if (intensity === 0) return '#1C1C1C';
     if (intensity < 0.25) return '#2D4A3D';
@@ -24,7 +24,7 @@ export default function HeatmapComponent({ data }: HeatmapComponentProps) {
     return '#F54E00';
   };
 
-  const getCellValue = (location, hour) => {
+  const getCellValue = (location: string | undefined, hour: number | undefined) => {
     const cell = data.find(d => d.location === location && d.hour === hour);
     return cell ? cell.value : 0;
   };
