@@ -75,13 +75,13 @@ export function useFinancialData(updateFrequency = 2000) {
       await loadFraudData();
       console.log('Fraud data loaded successfully');
 
-      // Get initial batch
-      const initialBatch = getNextBatch(50);
+      // Get smaller initial batch for cleaner startup
+      const initialBatch = getNextBatch(10);
       addEvents(initialBatch);
 
-      // Start streaming
+      // Start streaming with smaller batches for smoother real-time effect
       intervalRef.current = setInterval(() => {
-        const batch = getNextBatch(5); // Get 5 events at a time
+        const batch = getNextBatch(3); // Get 3 events at a time for smoother updates
         if (batch.length > 0) {
           addEvents(batch);
         }
@@ -119,11 +119,14 @@ export function useFinancialData(updateFrequency = 2000) {
   }, [startDataStream, stopDataStream]);
 
   useEffect(() => {
+    // Clear any existing data on mount (page refresh)
+    clearData();
+    // Start fresh data stream
     startDataStream();
     return () => {
       stopDataStream();
     };
-  }, [startDataStream, stopDataStream]);
+  }, []); // Empty dependency array to run only on mount
 
   return {
     events,

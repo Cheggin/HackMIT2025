@@ -5,6 +5,11 @@ let currentIndex = 0;
 let isLoading = false;
 let loadPromise = null;
 
+// Reset the index on page load to start fresh
+if (typeof window !== 'undefined') {
+  currentIndex = 0;
+}
+
 // Load a smaller sample of the data for better performance
 const MAX_ROWS_TO_LOAD = 50000; // Load only first 50k rows instead of entire 493MB file
 
@@ -111,6 +116,8 @@ export async function loadFraudData() {
   return loadPromise;
 }
 
+let lastTimestamp = Date.now();
+
 export function getNextBatch(batchSize = 10) {
   if (currentIndex >= fraudData.length) {
     // Reset to beginning if we've reached the end
@@ -119,10 +126,17 @@ export function getNextBatch(batchSize = 10) {
 
   const batch = [];
   for (let i = 0; i < batchSize && currentIndex < fraudData.length; i++) {
-    batch.push(fraudData[currentIndex]);
+    // Add a small time offset for each item in the batch
+    // This ensures each row has a slightly different timestamp
+    const itemWithTimestamp = {
+      ...fraudData[currentIndex],
+      _batchTimestamp: lastTimestamp + (i * 100) // 100ms between items in batch
+    };
+    batch.push(itemWithTimestamp);
     currentIndex++;
   }
 
+  lastTimestamp = Date.now(); // Update for next batch
   return batch;
 }
 
@@ -151,9 +165,9 @@ export function convertFraudDataToEvent(fraudRow) {
 
   const eventType = typeMapping[fraudRow.type] || 'transaction';
 
-  // Create timestamp using current time for better chart visualization
-  // Each row gets the current timestamp when it's processed
-  const timestamp = new Date();
+  // Create timestamp using current time or batch timestamp for better chart visualization
+  // Use the batch timestamp if available, otherwise use current time
+  const timestamp = fraudRow._batchTimestamp ? new Date(fraudRow._batchTimestamp) : new Date();
 
   return {
     id,

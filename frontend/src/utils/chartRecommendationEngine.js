@@ -168,32 +168,35 @@ export function recommendCharts(events, maxCharts = 4) {
 function prepareTimeSeriesData(events) {
   const timeGroups = {};
 
-  // Group by hour for better visualization with large datasets
+  // Group by 10-second intervals for real-time visualization
   events.forEach(event => {
     const timestamp = new Date(event.timestamp);
-    const hourKey = `Day ${Math.floor(timestamp.getDate())}-${String(timestamp.getHours()).padStart(2, '0')}h`;
+    // Round to nearest 10 seconds
+    const seconds = Math.floor(timestamp.getTime() / 10000) * 10;
+    const roundedTime = new Date(seconds * 1000);
+    const timeKey = `${String(roundedTime.getHours()).padStart(2, '0')}:${String(roundedTime.getMinutes()).padStart(2, '0')}:${String(roundedTime.getSeconds()).padStart(2, '0')}`;
 
-    if (!timeGroups[hourKey]) {
-      timeGroups[hourKey] = {
-        time: hourKey,
+    if (!timeGroups[seconds]) {
+      timeGroups[seconds] = {
+        time: timeKey,
         volume: 0,
         amount: 0,
         fraudCount: 0,
-        timestamp: timestamp.getTime()
+        timestamp: seconds * 1000
       };
     }
 
-    timeGroups[hourKey].volume++;
-    timeGroups[hourKey].amount += event.amount;
+    timeGroups[seconds].volume++;
+    timeGroups[seconds].amount += event.amount;
     if (event.isFraud) {
-      timeGroups[hourKey].fraudCount++;
+      timeGroups[seconds].fraudCount++;
     }
   });
 
-  // Sort by timestamp and return last 24 time periods
+  // Sort by timestamp and return last 20 time periods for cleaner visualization
   return Object.values(timeGroups)
     .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-24)
+    .slice(-20)
     .map(({ timestamp, ...rest }) => rest);
 }
 
