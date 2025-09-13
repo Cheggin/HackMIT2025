@@ -8,8 +8,8 @@ import {
   getDatasetInfo
 } from '../utils/csvDataLoader';
 
-const CHART_WINDOW_SIZE = 1000; // Process only last 1000 events for charts
-const TABLE_HISTORY_SIZE = 1000; // Keep last 1000 events in table
+const CHART_WINDOW_SIZE = 100; // Process only last 100 events for charts (for sliding window)
+const TABLE_HISTORY_SIZE = 200; // Keep last 200 events in table
 
 export function useFinancialData(updateFrequency = 2000) {
   const [events, setEvents] = useState([]);
@@ -23,9 +23,9 @@ export function useFinancialData(updateFrequency = 2000) {
   const updateCounterRef = useRef(0);
 
   const updateCharts = useCallback((data) => {
-    // Only update charts every 10 new events for performance
+    // Update charts every 3 new events for smoother sliding window
     updateCounterRef.current++;
-    if (updateCounterRef.current >= 10 || data.length <= 10) {
+    if (updateCounterRef.current >= 3 || data.length <= 10) {
       const recommendations = recommendCharts(data, 4);
       setCharts(recommendations);
       updateCounterRef.current = 0;
@@ -75,8 +75,8 @@ export function useFinancialData(updateFrequency = 2000) {
       await loadFraudData();
       console.log('Fraud data loaded successfully');
 
-      // Get smaller initial batch for cleaner startup
-      const initialBatch = getNextBatch(10);
+      // Load 50 transactions initially for a good starting view
+      const initialBatch = getNextBatch(50);
       addEvents(initialBatch);
 
       // Start streaming with smaller batches for smoother real-time effect

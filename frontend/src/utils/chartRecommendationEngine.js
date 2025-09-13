@@ -166,38 +166,30 @@ export function recommendCharts(events, maxCharts = 4) {
 }
 
 function prepareTimeSeriesData(events) {
-  const timeGroups = {};
+  // Take only the last 50 transactions for a sliding window view
+  const recentEvents = events.slice(-50);
 
-  // Group by 10-second intervals for real-time visualization
-  events.forEach(event => {
+  // Create individual data points for each transaction
+  // This gives us a smooth sliding window effect
+  const dataPoints = recentEvents.map((event, index) => {
     const timestamp = new Date(event.timestamp);
-    // Round to nearest 10 seconds
-    const seconds = Math.floor(timestamp.getTime() / 10000) * 10;
-    const roundedTime = new Date(seconds * 1000);
-    const timeKey = `${String(roundedTime.getHours()).padStart(2, '0')}:${String(roundedTime.getMinutes()).padStart(2, '0')}:${String(roundedTime.getSeconds()).padStart(2, '0')}`;
+    const timeKey = `${String(timestamp.getHours()).padStart(2, '0')}:${String(timestamp.getMinutes()).padStart(2, '0')}:${String(timestamp.getSeconds()).padStart(2, '0')}`;
 
-    if (!timeGroups[seconds]) {
-      timeGroups[seconds] = {
-        time: timeKey,
-        volume: 0,
-        amount: 0,
-        fraudCount: 0,
-        timestamp: seconds * 1000
-      };
-    }
+    // Calculate running totals up to this point
+    const eventsUpToNow = recentEvents.slice(0, index + 1);
+    const last10Events = eventsUpToNow.slice(-10); // Consider last 10 for running average
 
-    timeGroups[seconds].volume++;
-    timeGroups[seconds].amount += event.amount;
-    if (event.isFraud) {
-      timeGroups[seconds].fraudCount++;
-    }
+    return {
+      time: timeKey,
+      volume: last10Events.length,
+      amount: last10Events.reduce((sum, e) => sum + (e.amount || 0), 0),
+      fraudCount: last10Events.filter(e => e.isFraud).length,
+      timestamp: timestamp.getTime()
+    };
   });
 
-  // Sort by timestamp and return last 20 time periods for cleaner visualization
-  return Object.values(timeGroups)
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-20)
-    .map(({ timestamp, ...rest }) => rest);
+  // Return last 20 data points for clean visualization
+  return dataPoints.slice(-20);
 }
 
 function prepareCategoricalData(events) {
