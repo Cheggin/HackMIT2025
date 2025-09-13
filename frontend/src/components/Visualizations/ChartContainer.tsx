@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Maximize2, Minimize2, Download, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { clsx } from 'clsx';
-import LineChartComponent from './ChartTypes/LineChart';
+import LineChartWithHistory from './ChartTypes/LineChartWithHistory';
 import BarChartComponent from './ChartTypes/BarChart';
 import HeatmapComponent from './ChartTypes/HeatmapChart';
 import SankeyComponent from './ChartTypes/SankeyChart';
@@ -17,7 +17,7 @@ interface ChartContainerProps {
 }
 
 const chartComponents: Record<string, React.ComponentType<{ data: ChartData[] }>> = {
-  [CHART_TYPES.LINE]: LineChartComponent,
+  [CHART_TYPES.LINE]: LineChartWithHistory, // Use the new component with history
   [CHART_TYPES.BAR]: BarChartComponent,
   [CHART_TYPES.HEATMAP]: HeatmapComponent,
   [CHART_TYPES.SANKEY]: SankeyComponent,
@@ -28,7 +28,7 @@ export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen
   const [showJustification, setShowJustification] = useState(false);
   const [isLoading] = useState(false);
 
-  const ChartComponent = chartComponents[chart.type as string] || LineChartComponent;
+  const ChartComponent = chartComponents[chart.type as string] || LineChartWithHistory;
 
   const handleExport = () => {
     console.log('Exporting chart:', chart.title);
