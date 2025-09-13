@@ -151,9 +151,9 @@ export function convertFraudDataToEvent(fraudRow) {
 
   const eventType = typeMapping[fraudRow.type] || 'transaction';
 
-  // Create timestamp (step represents hours from start)
-  const baseDate = new Date('2024-01-01');
-  const timestamp = new Date(baseDate.getTime() + (fraudRow.step * 60 * 60 * 1000));
+  // Create timestamp using current time for better chart visualization
+  // Each row gets the current timestamp when it's processed
+  const timestamp = new Date();
 
   return {
     id,
