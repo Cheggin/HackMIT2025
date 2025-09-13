@@ -12,30 +12,13 @@ from datetime import datetime
 api_router = APIRouter(prefix="/api", tags=["API"])
 users_router = APIRouter(prefix="/api/users", tags=["Users"])
 projects_router = APIRouter(prefix="/api/projects", tags=["Projects"])
-
-# API Routes
-@api_router.get("/hello")
-async def hello_world():
-    return {"message": "Hello from FastAPI!"}
-
-@api_router.post("/echo", response_model=EchoResponse)
-async def echo_data(data: dict):
-    return EchoResponse(
-        received_data=data,
-        message="Data received successfully"
-    )
-
-@api_router.get("/health", response_model=HealthResponse)
-async def health_check():
-    db_connected = await db_service.test_connection()
-    return HealthResponse(
-        status="healthy",
-        message="API is running",
-        timestamp=datetime.now(),
-        database_connected=db_connected
-    )
-
 # User Routes
+
+@api_router.get("/agent-query")
+async def agent_query(limit: int = 100) -> List[dict[str, any]]:
+    result = await db_service.agent_query(limit)
+    return result
+
 @users_router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate):
     # Check if user already exists
