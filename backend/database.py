@@ -1,0 +1,216 @@
+from supabase import create_client, Client
+from config import settings
+from typing import Optional, List, Dict, Any
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class SupabaseClient:
+    def __init__(self):
+        self.client: Optional[Client] = None
+        self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize Supabase client with configuration"""
+        try:
+            if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
+                logger.warning("Supabase credentials not found. Using mock client.")
+                self.client = None
+                return
+            
+            self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            logger.info("Supabase client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Supabase client: {e}")
+            self.client = None
+    
+    def is_connected(self) -> bool:
+        """Check if Supabase client is connected"""
+        return self.client is not None
+
+# Global Supabase client instance
+supabase_client = SupabaseClient()
+
+class DatabaseService:
+    """Service class for database operations using Supabase"""
+    
+    def __init__(self):
+        self.client = supabase_client.client
+    
+    async def test_connection(self) -> bool:
+        """Test database connection"""
+        if not self.client:
+            return False
+        try:
+            # Simple query to test connection
+            result = self.client.table("users").select("id").limit(1).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Database connection test failed: {e}")
+            return False
+    
+    # User operations
+    async def create_user(self, user_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new user"""
+        if not self.client:
+            logger.error("Supabase client not available")
+            return None
+        
+        try:
+            result = self.client.table("users").insert(user_data).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            return None
+    
+    async def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get user by ID"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("users").select("*").eq("id", user_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user {user_id}: {e}")
+            return None
+    
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("users").select("*").eq("email", email).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by email {email}: {e}")
+            return None
+    
+    async def get_all_users(self) -> List[Dict[str, Any]]:
+        """Get all users"""
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("users").select("*").execute()
+            return result.data or []
+        except Exception as e:
+            logger.error(f"Error getting all users: {e}")
+            return []
+    
+    async def update_user(self, user_id: int, user_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update user"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("users").update(user_data).eq("id", user_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {e}")
+            return None
+    
+    async def delete_user(self, user_id: int) -> bool:
+        """Delete user"""
+        if not self.client:
+            return False
+        
+        try:
+            result = self.client.table("users").delete().eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting user {user_id}: {e}")
+            return False
+    
+    # Project operations
+    async def create_project(self, project_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Create a new project"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("projects").insert(project_data).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error creating project: {e}")
+            return None
+    
+    async def get_project(self, project_id: int) -> Optional[Dict[str, Any]]:
+        """Get project by ID"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("projects").select("*").eq("id", project_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting project {project_id}: {e}")
+            return None
+    
+    async def get_all_projects(self) -> List[Dict[str, Any]]:
+        """Get all projects"""
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("projects").select("*").execute()
+            return result.data or []
+        except Exception as e:
+            logger.error(f"Error getting all projects: {e}")
+            return []
+    
+    async def get_user_projects(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get projects by user ID"""
+        if not self.client:
+            return []
+        
+        try:
+            result = self.client.table("projects").select("*").eq("owner_id", user_id).execute()
+            return result.data or []
+        except Exception as e:
+            logger.error(f"Error getting projects for user {user_id}: {e}")
+            return []
+    
+    async def update_project(self, project_id: int, project_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update project"""
+        if not self.client:
+            return None
+        
+        try:
+            result = self.client.table("projects").update(project_data).eq("id", project_id).execute()
+            if result.data:
+                return result.data[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error updating project {project_id}: {e}")
+            return None
+    
+    async def delete_project(self, project_id: int) -> bool:
+        """Delete project"""
+        if not self.client:
+            return False
+        
+        try:
+            result = self.client.table("projects").delete().eq("id", project_id).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting project {project_id}: {e}")
+            return False
+
+# Global database service instance
+db_service = DatabaseService()
