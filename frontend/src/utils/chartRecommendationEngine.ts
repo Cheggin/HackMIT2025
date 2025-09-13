@@ -1,12 +1,35 @@
+import type { FinancialEvent, Chart, ChartData } from '../types';
+
 export const CHART_TYPES = {
   LINE: 'line',
   BAR: 'bar',
   HEATMAP: 'heatmap',
   SANKEY: 'sankey',
   FUNNEL: 'funnel'
-};
+} as const;
 
-export const constitutionRules = {
+export type ChartType = typeof CHART_TYPES[keyof typeof CHART_TYPES];
+
+interface ConstitutionRule {
+  id: string;
+  condition: string;
+  action: string;
+  priority: number;
+  justification: string;
+}
+
+interface ConstitutionRules {
+  name: string;
+  version: string;
+  rules: ConstitutionRule[];
+  anomalyThresholds: {
+    highAmount: number;
+    highRiskScore: number;
+    multipleFailuresThreshold: number;
+  };
+}
+
+export const constitutionRules: ConstitutionRules = {
   name: 'AI Financial Analytics Constitution',
   version: '1.0.0',
   rules: [
@@ -49,35 +72,45 @@ export const constitutionRules = {
   anomalyThresholds: {
     highAmount: 100000,
     highRiskScore: 0.9,
-    failureRate: 0.2,
-    rapidLocationChange: 60000 // milliseconds
+    multipleFailuresThreshold: 3
   }
 };
 
-export function analyzeDataCharacteristics(events) {
-  const characteristics = {
-    hasTimeSeriesData: true,
-    categoricalBreakdown: {},
-    flowPatterns: {},
-    conversionMetrics: {},
-    densityMetrics: {},
-    anomalyCount: 0,
-    trendDirection: null
+interface DataCharacteristics {
+  hasTimeSeries: boolean;
+  hasCategoricalBreakdown: Record<string, number>;
+  hasFlowPatterns: Record<string, number>;
+  trendDirection: 'increasing' | 'decreasing' | 'stable';
+  anomalyCount: number;
+}
+
+function analyzeDataCharacteristics(events: FinancialEvent[]): DataCharacteristics {
+  const characteristics: DataCharacteristics = {
+    hasTimeSeries: false,
+    hasCategoricalBreakdown: {},
+    hasFlowPatterns: {},
+    trendDirection: 'stable',
+    anomalyCount: 0
   };
 
-  if (!events || events.length === 0) return characteristics;
+  if (events.length === 0) return characteristics;
+
+  // Check for time series data
+  const timestamps = events.map(e => new Date(e.timestamp).getTime());
+  const timeDiffs = timestamps.slice(1).map((t, i) => t - timestamps[i]);
+  characteristics.hasTimeSeries = timeDiffs.length > 0;
 
   // Analyze categorical breakdown
   events.forEach(event => {
-    if (!characteristics.categoricalBreakdown[event.eventType]) {
-      characteristics.categoricalBreakdown[event.eventType] = 0;
+    if (!characteristics.hasCategoricalBreakdown[event.eventType]) {
+      characteristics.hasCategoricalBreakdown[event.eventType] = 0;
     }
-    characteristics.categoricalBreakdown[event.eventType]++;
+    characteristics.hasCategoricalBreakdown[event.eventType]++;
 
-    if (!characteristics.flowPatterns[event.status]) {
-      characteristics.flowPatterns[event.status] = 0;
+    if (!characteristics.hasFlowPatterns[event.status]) {
+      characteristics.hasFlowPatterns[event.status] = 0;
     }
-    characteristics.flowPatterns[event.status]++;
+    characteristics.hasFlowPatterns[event.status]++;
   });
 
   // Calculate trend
@@ -97,66 +130,83 @@ export function analyzeDataCharacteristics(events) {
     e.metadata?.riskScore > constitutionRules.anomalyThresholds.highRiskScore
   ).length;
 
-  // Calculate conversion metrics
-  const successCount = events.filter(e => e.status === 'success').length;
-  const totalCount = events.length;
-  characteristics.conversionMetrics.successRate = totalCount > 0 ? successCount / totalCount : 0;
-
   return characteristics;
 }
 
-export function recommendCharts(events, maxCharts = 4) {
+export function recommendChart(events: FinancialEvent[]): Chart {
   const characteristics = analyzeDataCharacteristics(events);
-  const recommendations = [];
+  const rule = constitutionRules.rules[0];
 
-  // Always include a time series chart for financial data
-  recommendations.push({
+  // Default to line chart for time series
+  return {
     type: CHART_TYPES.LINE,
     title: 'Transaction Volume Over Time',
-    justification: 'Shows temporal patterns and trends in transaction volume',
+    justification: `${rule.justification}. Data shows ${characteristics.trendDirection} trend with ${events.length} data points.`,
     data: prepareTimeSeriesData(events),
     priority: 1
-  });
+  };
+}
 
-  // Add categorical breakdown if there's variety
-  if (Object.keys(characteristics.categoricalBreakdown).length > 1) {
+export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4): Chart[] {
+  const characteristics = analyzeDataCharacteristics(events);
+  const recommendations: Chart[] = [];
+
+  // Always include time series if we have time data
+  if (characteristics.hasTimeSeries) {
+    const rule = constitutionRules.rules.find(r => r.id === 'time_series_rule')!;
+    recommendations.push({
+      type: CHART_TYPES.LINE,
+      title: 'Transaction Volume Over Time',
+      justification: `${rule.justification}. Data shows ${characteristics.trendDirection} trend with ${events.length} data points and ${characteristics.anomalyCount} anomalies detected.`,
+      data: prepareTimeSeriesData(events),
+      priority: 1
+    });
+  }
+
+  // Add categorical comparison if we have multiple categories
+  if (Object.keys(characteristics.hasCategoricalBreakdown).length > 1) {
+    const rule = constitutionRules.rules.find(r => r.id === 'categorical_comparison')!;
     recommendations.push({
       type: CHART_TYPES.BAR,
-      title: 'Event Type Distribution',
-      justification: 'Compares frequency and volume across different event types',
+      title: 'Transaction Types Distribution',
+      justification: `${rule.justification}. Found ${Object.keys(characteristics.hasCategoricalBreakdown).length} different transaction types to compare.`,
       data: prepareCategoricalData(events),
       priority: 2
     });
   }
 
-  // Add heatmap for time/location patterns
-  if (events.length > 50) {
+  // Add heatmap for location/time patterns
+  if (events.length > 20) {
+    const rule = constitutionRules.rules.find(r => r.id === 'density_pattern')!;
     recommendations.push({
       type: CHART_TYPES.HEATMAP,
-      title: 'Activity Heatmap',
-      justification: 'Reveals patterns in transaction activity by time and location',
+      title: 'Transaction Heatmap by Location and Time',
+      justification: `${rule.justification}. Analyzing ${events.length} transactions across multiple dimensions.`,
       data: prepareHeatmapData(events),
       priority: 3
     });
   }
 
-  // Add funnel for conversion analysis
-  if (characteristics.conversionMetrics.successRate < 0.95) {
+  // Add funnel for status progression
+  if (Object.keys(characteristics.hasFlowPatterns).length > 1) {
+    const rule = constitutionRules.rules.find(r => r.id === 'conversion_funnel')!;
     recommendations.push({
       type: CHART_TYPES.FUNNEL,
-      title: 'Transaction Success Funnel',
-      justification: 'Visualizes drop-off rates in transaction processing',
+      title: 'Transaction Status Funnel',
+      justification: `${rule.justification}. Tracking progression through ${Object.keys(characteristics.hasFlowPatterns).length} different states.`,
       data: prepareFunnelData(events),
       priority: 4
     });
   }
 
-  // Add Sankey for flow analysis if there's enough data
-  if (events.length > 30 && Object.keys(characteristics.flowPatterns).length > 2) {
+  // Add Sankey for flow analysis
+  if (Object.keys(characteristics.hasCategoricalBreakdown).length > 2 &&
+      Object.keys(characteristics.hasFlowPatterns).length > 1) {
+    const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
     recommendations.push({
       type: CHART_TYPES.SANKEY,
       title: 'Transaction Flow Analysis',
-      justification: 'Shows flow relationships between event types and outcomes',
+      justification: `${rule.justification}. Visualizing flows between ${Object.keys(characteristics.hasCategoricalBreakdown).length} event types and ${Object.keys(characteristics.hasFlowPatterns).length} statuses.`,
       data: prepareSankeyData(events),
       priority: 5
     });
@@ -165,7 +215,7 @@ export function recommendCharts(events, maxCharts = 4) {
   return recommendations.slice(0, maxCharts).sort((a, b) => a.priority - b.priority);
 }
 
-function prepareTimeSeriesData(events) {
+function prepareTimeSeriesData(events: FinancialEvent[]): ChartData[] {
   // Take only the last 50 transactions for a sliding window view
   const recentEvents = events.slice(-50);
 
@@ -192,18 +242,16 @@ function prepareTimeSeriesData(events) {
   return dataPoints.slice(-20);
 }
 
-function prepareCategoricalData(events) {
-  const categories = {};
+function prepareCategoricalData(events: FinancialEvent[]): ChartData[] {
+  const categories: Record<string, { count: number; amount: number; fraudCount: number }> = {};
 
   events.forEach(event => {
     const type = event.transactionType || event.eventType;
     if (!categories[type]) {
       categories[type] = {
-        name: type,
         count: 0,
         amount: 0,
-        fraudCount: 0,
-        avgAmount: 0
+        fraudCount: 0
       };
     }
     categories[type].count++;
@@ -213,17 +261,17 @@ function prepareCategoricalData(events) {
     }
   });
 
-  // Calculate averages and fraud rates
-  Object.values(categories).forEach(cat => {
-    cat.avgAmount = cat.count > 0 ? cat.amount / cat.count : 0;
-    cat.fraudRate = cat.count > 0 ? (cat.fraudCount / cat.count) * 100 : 0;
-  });
-
-  return Object.values(categories);
+  return Object.entries(categories).map(([name, data]) => ({
+    name,
+    count: data.count,
+    amount: data.amount,
+    avgAmount: data.amount / data.count,
+    fraudRate: (data.fraudCount / data.count) * 100
+  }));
 }
 
-function prepareHeatmapData(events) {
-  const heatmapData = [];
+function prepareHeatmapData(events: FinancialEvent[]): ChartData[] {
+  const heatmapData: ChartData[] = [];
   const locations = [...new Set(events.map(e => e.location))];
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -245,27 +293,27 @@ function prepareHeatmapData(events) {
   return heatmapData;
 }
 
-function prepareFunnelData(events) {
+function prepareFunnelData(events: FinancialEvent[]): ChartData[] {
   const total = events.length;
   const pending = events.filter(e => e.status === 'pending').length;
   const success = events.filter(e => e.status === 'success').length;
 
   return [
-    { name: 'Initiated', value: total, percentage: 100 },
+    { name: 'Total', value: total, percentage: 100 },
     { name: 'Processing', value: total - pending, percentage: ((total - pending) / total) * 100 },
     { name: 'Completed', value: success, percentage: (success / total) * 100 }
   ];
 }
 
-function prepareSankeyData(events) {
-  const flows = [];
+function prepareSankeyData(events: FinancialEvent[]): ChartData[] {
+  const flows: Record<string, ChartData> = {};
 
   events.forEach(event => {
     const key = `${event.eventType}-${event.status}`;
     if (!flows[key]) {
       flows[key] = { source: event.eventType, target: event.status, value: 0 };
     }
-    flows[key].value++;
+    flows[key].value! += 1;
   });
 
   return Object.values(flows);
