@@ -21,10 +21,10 @@ You can find these values in your Supabase project settings under Settings > API
 
 ## Database Schema
 
-The application expects an `events` table in the `private` schema with the following structure:
+The application expects an `events` table in the `public` schema with the following structure:
 
 ```sql
-CREATE TABLE private.events (
+CREATE TABLE public.events (
   id BIGINT PRIMARY KEY,
   type TEXT,
   properties JSONB,
@@ -46,7 +46,7 @@ The `properties` JSONB field should contain:
 
 ## Features
 
-- **Real-time Updates**: The app subscribes to INSERT events on the private.events table
+- **Real-time Updates**: The app subscribes to INSERT events on the public.events table
 - **Sliding Window**: Shows the last 50 transactions in charts
 - **Continuous Polling**: Fetches new transactions every 2 seconds
 - **Anomaly Detection**: Automatically detects and highlights suspicious transactions

@@ -32,9 +32,8 @@ let isInitialized = false;
 
 export async function initializeSupabaseConnection(): Promise<boolean> {
   try {
-    // Test the connection - using private schema
+    // Test the connection - using public schema (private schema not accessible via REST API)
     const { data, error } = await supabase
-      .schema('private')
       .from('events')
       .select('id')
       .limit(1);
@@ -55,9 +54,8 @@ export async function initializeSupabaseConnection(): Promise<boolean> {
 
 export async function fetchInitialTransactions(limit: number = 50): Promise<FinancialEvent[]> {
   try {
-    // Fetch the most recent transactions from private schema
+    // Fetch the most recent transactions from public schema
     const { data, error } = await supabase
-      .schema('private')
       .from('events')
       .select('*')
       .order('time', { ascending: false })
@@ -93,9 +91,8 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
   }
 
   try {
-    // Fetch transactions newer than the last fetched timestamp from private schema
+    // Fetch transactions newer than the last fetched timestamp from public schema
     const { data, error } = await supabase
-      .schema('private')
       .from('events')
       .select('*')
       .gt('time', lastFetchedTime)
@@ -246,7 +243,7 @@ export function subscribeToTransactions(callback: (event: FinancialEvent) => voi
       'postgres_changes',
       {
         event: 'INSERT',
-        schema: 'private',
+        schema: 'public',
         table: 'events'
       },
       (payload) => {
