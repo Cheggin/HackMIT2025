@@ -32,9 +32,10 @@ let isInitialized = false;
 
 export async function initializeSupabaseConnection(): Promise<boolean> {
   try {
-    // Test the connection
+    // Test the connection - using private schema
     const { data, error } = await supabase
-      .from('transactions')
+      .schema('private')
+      .from('events')
       .select('id')
       .limit(1);
 
@@ -54,9 +55,10 @@ export async function initializeSupabaseConnection(): Promise<boolean> {
 
 export async function fetchInitialTransactions(limit: number = 50): Promise<FinancialEvent[]> {
   try {
-    // Fetch the most recent transactions
+    // Fetch the most recent transactions from private schema
     const { data, error } = await supabase
-      .from('transactions')
+      .schema('private')
+      .from('events')
       .select('*')
       .order('time', { ascending: false })
       .limit(limit);
@@ -91,9 +93,10 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
   }
 
   try {
-    // Fetch transactions newer than the last fetched timestamp
+    // Fetch transactions newer than the last fetched timestamp from private schema
     const { data, error } = await supabase
-      .from('transactions')
+      .schema('private')
+      .from('events')
       .select('*')
       .gt('time', lastFetchedTime)
       .order('time', { ascending: true })
@@ -238,13 +241,13 @@ export function detectSupabaseAnomaly(event: FinancialEvent): Anomaly[] {
 // Subscribe to real-time updates (optional - for live data)
 export function subscribeToTransactions(callback: (event: FinancialEvent) => void) {
   const subscription = supabase
-    .channel('transactions-channel')
+    .channel('events-channel')
     .on(
       'postgres_changes',
       {
         event: 'INSERT',
-        schema: 'public',
-        table: 'transactions'
+        schema: 'private',
+        table: 'events'
       },
       (payload) => {
         const event = convertSupabaseRowToEvent(payload.new as TransactionRow);
