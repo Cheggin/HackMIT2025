@@ -11,11 +11,9 @@ import {
 
 interface TopBarProps {
   onSettingsClick: () => void;
-  onConstitutionToggle: () => void;
-  constitutionMode: boolean;
 }
 
-export default function TopBar({ onSettingsClick, onConstitutionToggle, constitutionMode }: TopBarProps) {
+export default function TopBar({ onSettingsClick }: TopBarProps) {
   return (
     <div className="h-16 bg-posthog-bg-secondary border-b border-posthog-border flex items-center justify-between px-6">
       <div className="flex items-center space-x-8">
@@ -55,16 +53,6 @@ export default function TopBar({ onSettingsClick, onConstitutionToggle, constitu
           />
         </div>
 
-        <button
-          onClick={onConstitutionToggle}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            constitutionMode
-              ? 'bg-posthog-accent text-white'
-              : 'bg-posthog-bg-tertiary text-posthog-text-secondary hover:text-posthog-text-primary'
-          }`}
-        >
-          Constitution {constitutionMode ? 'ON' : 'OFF'}
-        </button>
 
         <button className="relative p-2 hover:bg-posthog-bg-tertiary rounded-lg transition-colors">
           <Bell className="w-5 h-5 text-posthog-text-secondary" />

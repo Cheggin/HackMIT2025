@@ -4,7 +4,6 @@ import SideBar from './components/Navigation/SideBar';
 import FinancialDataTable from './components/DataTable/FinancialDataTable';
 import ChartContainer from './components/Visualizations/ChartContainer';
 import TypedChartContainer from './components/Visualizations/TypedChartContainer';
-import ConstitutionToggle from './components/Controls/ConstitutionToggle';
 import SettingsPanel from './components/Controls/SettingsPanel';
 import ExploratoryPromptBox from './components/ExploratoryPrompt/ExploratoryPromptBox';
 import VisualizationPopup from './components/ExploratoryPrompt/VisualizationPopup';
@@ -16,7 +15,6 @@ import type { GeneratedChartData } from './services/exploratoryService';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [constitutionMode, setConstitutionMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [updateFrequency, setUpdateFrequency] = useState(3000); // Update every 3 seconds
   const [, setCurrentAnomaly] = useState<Anomaly | null>(null);
@@ -87,8 +85,6 @@ function App() {
     <div className="h-screen w-screen bg-posthog-bg-primary flex flex-col overflow-hidden">
       <TopBar
         onSettingsClick={() => setSettingsOpen(true)}
-        onConstitutionToggle={() => setConstitutionMode(!constitutionMode)}
-        constitutionMode={constitutionMode}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -109,22 +105,13 @@ function App() {
           {/* Right Panel - Visualizations (60%) */}
           <div className="w-3/5 p-4 overflow-hidden">
             <div className="h-full flex flex-col space-y-4">
-              {/* Constitution Toggle */}
-              {constitutionMode && (
-                <div className="flex-shrink-0">
-                  <ConstitutionToggle
-                    enabled={constitutionMode}
-                    onToggle={() => setConstitutionMode(!constitutionMode)}
-                  />
-                </div>
-              )}
 
               {/* Connection Status and Exploratory Prompt */}
               <div className="mb-3">
                 {/* Top Bar with Title and Controls */}
                 <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-semibold text-posthog-text-primary">
-                  {useSQLMode ? 'SQL-Driven Visualizations' : 'AI-Powered Visualizations'}
+                  {useSQLMode ? 'Agent-Driven Visualizations' : 'AI-Powered Visualizations'}
                 </h2>
                 <div className="flex items-center space-x-4">
                   {/* SQL Mode Toggle */}
