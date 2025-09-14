@@ -1,0 +1,30 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ea580c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="0" y="0" width="128" height="128" rx="24" ry="24" fill="url(#bgGradient)"/>
+
+  <!-- Simplified trending arrow icon -->
+  <g transform="translate(64, 64)">
+    <!-- Main arrow path with smoother curves -->
+    <path d="M -28 18 L -12 2 L 0 10 L 16 -6 L 28 -18"
+          fill="none"
+          stroke="white"
+          stroke-width="7"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+    <!-- Arrow head (pointing from the tip) -->
+    <path d="M 28 -18 L 14 -18 L 28 -18 L 28 -4"
+          fill="none"
+          stroke="white"
+          stroke-width="7"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+</svg>

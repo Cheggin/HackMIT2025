@@ -22,7 +22,7 @@ export default function TopBar({ onSettingsClick }: TopBarProps) {
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <span className="text-posthog-text-primary font-semibold text-lg">
-            FinanceHog AI
+            FinanceHog
           </span>
         </div>
 
