@@ -28,7 +28,6 @@ interface TransactionRow {
 
 // Track the last fetched timestamp and ID for continuous polling
 let lastFetchedTime: number | null = null;
-let lastFetchedId: number | null = null;
 let isInitialized = false;
 let totalRowCount = 0;
 
@@ -69,7 +68,7 @@ export async function fetchInitialTransactions(limit: number = 50): Promise<Fina
     const { data, error } = await supabase
       .from('events')  // Using public schema
       .select('*')
-      .order('id', { ascending: true })
+      .order('time', { ascending: true })
       .limit(limit);
 
     if (error) {
@@ -79,7 +78,6 @@ export async function fetchInitialTransactions(limit: number = 50): Promise<Fina
 
     if (data && data.length > 0) {
       // Update the last fetched ID and timestamp
-      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
       lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
 
       // Convert and return with timestamps spaced 1 second apart for initial batch
@@ -104,7 +102,7 @@ export async function fetchInitialTransactions(limit: number = 50): Promise<Fina
 }
 
 export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
-  if (lastFetchedId === null) {
+  if (lastFetchedTime === null) {
     // If we haven't fetched anything yet, get initial data
     return fetchInitialTransactions();
   }
@@ -114,11 +112,11 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
     let query = supabase
       .from('events')
       .select('*')
-      .order('id', { ascending: true })
-      .limit(6); // Get 6 rows per update
+      .order('time', { ascending: true })
+      .limit(3); // Get 3 rows per update
 
     // Get next rows after last fetched ID
-    query = query.gt('id', lastFetchedId);
+    query = query.gt('time', lastFetchedTime + 1);
 
     const { data, error } = await query;
 
@@ -129,7 +127,7 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
 
     if (data && data.length > 0) {
       // Update the last fetched ID
-      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
+      lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
       console.log(`Fetched ${data.length} new transactions, IDs: ${data.map((r: TransactionRow) => r.id).join(', ')}`);
 
       // Convert and return with timestamps spaced 1 second apart
@@ -151,15 +149,16 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
       const { data: firstBatch, error: firstError } = await supabase
         .from('events')
         .select('*')
-        .order('id', { ascending: true })
-        .limit(6);
+        .order('time', { ascending: true })
+        .limit(3);
 
       if (firstError || !firstBatch || firstBatch.length === 0) {
         return [];
       }
 
       // Update the last fetched ID to continue from here
-      lastFetchedId = Math.max(...firstBatch.map((row: TransactionRow) => row.id));
+        lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
+
 
       const currentTime = Date.now();
       return firstBatch

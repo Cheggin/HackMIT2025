@@ -13,7 +13,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [constitutionMode, setConstitutionMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [updateFrequency, setUpdateFrequency] = useState(4000); // Update every 4 seconds for snappy updates matching chart speed
+  const [updateFrequency, setUpdateFrequency] = useState(3000); // Update every 3 seconds
   const [currentAnomaly, setCurrentAnomaly] = useState<Anomaly | null>(null);
   const [fullscreenChart, setFullscreenChart] = useState<number | null>(null);
 

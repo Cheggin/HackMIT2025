@@ -26,19 +26,24 @@ export default function DataRow({ event, isNew = false, animationDelay = 0 }: Da
         // Stop the entry animation after it completes
         setTimeout(() => {
           setIsAnimating(false);
-        }, 600);
+        }, 400);
       }, animationDelay);
 
-      // Keep the highlight for 2 seconds after the row appears
-      // Quick highlight that matches chart update speed
+      // Keep the highlight for 1.5 seconds after the row appears
+      // Completes well before next batch
       const highlightTimer = setTimeout(() => {
         setIsHighlighted(false);
-      }, animationDelay + 2000);
+      }, animationDelay + 1500);
 
       return () => {
         clearTimeout(showTimer);
         clearTimeout(highlightTimer);
       };
+    } else {
+      // Not new - ensure clean state
+      setIsVisible(true);
+      setIsAnimating(false);
+      setIsHighlighted(false);
     }
   }, [isNew, animationDelay, event.id]);
 
@@ -80,8 +85,8 @@ export default function DataRow({ event, isNew = false, animationDelay = 0 }: Da
     <tr
       className={clsx(
         'table-row border-b border-posthog-border',
-        // Base transition for all state changes - faster
-        'transition-all duration-500 ease-out',
+        // Base transition for all state changes - smooth
+        'transition-all duration-300 ease-out',
         // Entry animation
         isAnimating && 'animate-smoothSlideIn',
         // Highlight state with long fade transition

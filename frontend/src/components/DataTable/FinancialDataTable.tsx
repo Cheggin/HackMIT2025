@@ -20,6 +20,7 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevEventCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Skip tracking on initial load
@@ -31,34 +32,46 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
 
     // Track new events only after initial load
     if (events.length > prevEventCountRef.current) {
-      const newEventsCount = events.length - prevEventCountRef.current;
-      const newEvents = events.slice(-newEventsCount);
-      const newIdsMap = new Map<string, number>();
-
-      // Create staggered delays for each new row
-      newEvents.forEach((event, index) => {
-        // Stagger by 100ms per row for snappier appearance
-        newIdsMap.set(event.id, index * 100);
-      });
-
-      setNewEventIds(newIdsMap);
-
-      // Smooth scroll after a short delay
-      if (autoScroll && scrollContainerRef.current) {
-        setTimeout(() => {
-          scrollContainerRef.current?.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-          });
-        }, 300);
+      // Clear any existing animation timeout first
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        // Immediately clear old animations
+        setNewEventIds(new Map());
       }
 
-      // Clear the new event tracking after all animations complete
-      // Timeline: last row appears at 500ms, highlights for 2000ms, fades for 500ms
-      // Total: 500 + 2000 + 500 = 3000ms
+      const newEventsCount = events.length - prevEventCountRef.current;
+      const newEvents = events.slice(-newEventsCount);
+
+      // Small delay to ensure old animations are cleared
       setTimeout(() => {
-        setNewEventIds(new Map());
-      }, 3500); // Clear after 3.5 seconds
+        const newIdsMap = new Map<string, number>();
+
+        // Create staggered delays for only the first 3 new rows
+        newEvents.slice(0, 3).forEach((event, index) => {
+          // Stagger by 200ms per row for cleaner appearance
+          newIdsMap.set(event.id, index * 200);
+        });
+
+        setNewEventIds(newIdsMap);
+
+        // Smooth scroll after a short delay
+        if (autoScroll && scrollContainerRef.current) {
+          setTimeout(() => {
+            scrollContainerRef.current?.scrollTo({
+              top: 0,
+              behavior: 'smooth'
+            });
+          }, 300);
+        }
+
+        // Clear the new event tracking after all animations complete
+        // Timeline: last row (index 2) appears at 400ms, animates for 400ms, highlights for 1500ms
+        // Total: 400 + 400 + 1500 = 2300ms
+        animationTimeoutRef.current = setTimeout(() => {
+          setNewEventIds(new Map());
+          animationTimeoutRef.current = null;
+        }, 2400); // Clear after 2.4 seconds (600ms before next batch at 3s)
+      }, 50); // Small delay to ensure clean transition
     }
     prevEventCountRef.current = events.length;
   }, [events, autoScroll]);

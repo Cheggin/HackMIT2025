@@ -25,7 +25,7 @@ interface UseFinancialDataReturn {
   updateFrequencyRate: (newFrequency: number) => void;
 }
 
-export function useFinancialData(updateFrequency: number = 4000): UseFinancialDataReturn { // Default to 4s for fast, snappy updates
+export function useFinancialData(updateFrequency: number = 3000): UseFinancialDataReturn { // Default to 3s updates
   const [events, setEvents] = useState<FinancialEvent[]>([]);
   const [chartData, setChartData] = useState<FinancialEvent[]>([]); // Separate state for chart processing
   const [charts, setCharts] = useState<Chart[]>([]);
