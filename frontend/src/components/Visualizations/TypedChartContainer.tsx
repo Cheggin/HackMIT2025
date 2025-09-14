@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Maximize2, Minimize2, Download, Info } from 'lucide-react';
 import { clsx } from 'clsx';
+import { toPng } from 'html-to-image';
 import type { AnyChartData } from '../../types/charts';
 import PieChartTyped from './ChartTypes/PieChartTyped';
 import BarChartTyped from './ChartTypes/BarChartTyped';
@@ -18,9 +19,31 @@ interface TypedChartContainerProps {
 export default function TypedChartContainer({ chart, isFullscreen, onToggleFullscreen }: TypedChartContainerProps) {
   const [isLoading] = useState(false);
   const [showJustification, setShowJustification] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
 
-  const handleExport = () => {
-    console.log('Exporting chart:', chart.title);
+  const handleExport = async () => {
+    if (!chartRef.current) return;
+
+    try {
+      // Export as PNG
+      const dataUrl = await toPng(chartRef.current, {
+        quality: 0.95,
+        backgroundColor: '#1B1B1B',
+        style: {
+          padding: '20px'
+        }
+      });
+
+      // Download the image
+      const link = document.createElement('a');
+      link.download = `${chart.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to export chart:', error);
+    }
   };
 
   const renderChart = () => {
@@ -89,7 +112,7 @@ export default function TypedChartContainer({ chart, isFullscreen, onToggleFulls
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 p-4 overflow-hidden" ref={chartRef}>
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
             <div className="space-y-3 w-full">

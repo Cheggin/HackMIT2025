@@ -12,9 +12,19 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+import os
+
+# Configure CORS based on environment
+if os.getenv("ENVIRONMENT") == "production":
+    # In production, you should specify your actual frontend domain
+    allowed_origins = ["*"]  # Allow all origins for now, update with your domain later
+else:
+    # Development origins
+    allowed_origins = ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -22,7 +22,8 @@
       "Bash(pip --version)",
       "Bash(.venv/bin/python:*)",
       "Bash(pip install:*)",
-      "Bash(uvicorn:*)"
+      "Bash(uvicorn:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []

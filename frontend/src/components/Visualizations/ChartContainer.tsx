@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Maximize2, Minimize2, Download } from 'lucide-react';
 import { clsx } from 'clsx';
+import { toPng } from 'html-to-image';
 import LineChartWithHistory from './ChartTypes/LineChartWithHistory';
 import NetworkGraph3D from './ChartTypes/NetworkGraph3D';
 import SankeyComponent from './ChartTypes/SankeyChart';
@@ -28,12 +29,33 @@ const chartComponents: Record<string, React.ComponentType<{ data: ChartData[] }>
 
 export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen }: ChartContainerProps) {
   const [isLoading] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const ChartComponent = chartComponents[chart.type as string] || LineChartWithHistory;
 
-  const handleExport = () => {
-    console.log('Exporting chart:', chart.title);
-    // In a real app, this would export the chart as an image or CSV
+  const handleExport = async () => {
+    if (!chartRef.current) return;
+
+    try {
+      // Export as PNG
+      const dataUrl = await toPng(chartRef.current, {
+        quality: 0.95,
+        backgroundColor: '#1B1B1B',
+        style: {
+          padding: '20px'
+        }
+      });
+
+      // Download the image
+      const link = document.createElement('a');
+      link.download = `${chart.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to export chart:', error);
+    }
   };
 
   return (
@@ -78,7 +100,7 @@ export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen
         {/* Justification UI removed */}
       </div>
 
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 p-4 overflow-hidden" ref={chartRef}>
         {isLoading ? (
           <div className="h-full flex items-center justify-center">
             <div className="space-y-3 w-full">
