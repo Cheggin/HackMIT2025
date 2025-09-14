@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, UploadFile, File
 from typing import List, Dict, Any
 from models import (
     AgentQueryResponse, 
@@ -10,6 +10,7 @@ from datetime import datetime
 import logging
 import base64
 from generate_financial_reports import run_graph_management_agent
+from generate_new_graph import generate_graph_from_request
 import os
 
 logger = logging.getLogger(__name__)
@@ -138,5 +139,29 @@ async def generate_report(files: List[UploadFile] = File(...)):
         "report_url": pdf_path_or_url
     }
     
+@api_router.post("/generate-graph", response_model=Graph)
+async def generate_graph_endpoint(request: Dict[str, Any]):
+    """
+    Body example:
+    { "request": "show average transaction amount over time by flagged status" }
+    """
+    user_request = request.get("request", "").strip()
+    if not user_request:
+        raise HTTPException(status_code=400, detail="Missing 'request' in body")
 
+    # Fetch a small sample of recent events and all existing graphs to provide context
+    recent_events = await db_service.agent_query(20)
+    existing_graphs = await db_service.get_all_graphs()
 
+    # Call Anthropic to obtain a new graph definition
+    try:
+        generated = generate_graph_from_request(user_request, recent_events, existing_graphs)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM generation failed: {e}")
+
+    # Persist the new graph in Supabase
+    new_graph = await db_service.create_graph(generated)
+    if not new_graph:
+        raise HTTPException(status_code=500, detail="Failed to save generated graph")
+
+    return new_graph
