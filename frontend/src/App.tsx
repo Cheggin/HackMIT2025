@@ -3,9 +3,11 @@ import TopBar from './components/Navigation/TopBar';
 import SideBar from './components/Navigation/SideBar';
 import FinancialDataTable from './components/DataTable/FinancialDataTable';
 import ChartContainer from './components/Visualizations/ChartContainer';
+import TypedChartContainer from './components/Visualizations/TypedChartContainer';
 import ConstitutionToggle from './components/Controls/ConstitutionToggle';
 import SettingsPanel from './components/Controls/SettingsPanel';
 import { useFinancialData } from './hooks/useFinancialData';
+import { useSQLCharts } from './hooks/useSQLCharts';
 import type { Anomaly } from './types';
 
 function App() {
@@ -15,16 +17,28 @@ function App() {
   const [updateFrequency, setUpdateFrequency] = useState(3000); // Update every 3 seconds
   const [, setCurrentAnomaly] = useState<Anomaly | null>(null);
   const [fullscreenChart, setFullscreenChart] = useState<number | null>(null);
+  const [useSQLMode, setUseSQLMode] = useState(true); // Toggle SQL mode
 
   const {
     events,
-    charts,
+    charts: algorithmCharts,
     anomalies,
     isConnected,
-    isLoading,
+    isLoading: dataLoading,
     datasetInfo,
     updateFrequencyRate
   } = useFinancialData(updateFrequency);
+
+  // Use SQL-based charts
+  const {
+    charts: sqlCharts,
+    isLoading: sqlLoading,
+    error: _sqlError
+  } = useSQLCharts(updateFrequency);
+
+  // Choose which charts to display
+  const charts = useSQLMode ? sqlCharts : algorithmCharts;
+  const isLoading = useSQLMode ? sqlLoading : dataLoading;
 
   useEffect(() => {
     if (anomalies.length > 0) {
@@ -76,13 +90,31 @@ function App() {
               {/* Connection Status */}
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-semibold text-posthog-text-primary">
-                  AI-Powered Visualizations
+                  {useSQLMode ? 'SQL-Driven Visualizations' : 'AI-Powered Visualizations'}
                 </h2>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-posthog-success' : 'bg-posthog-error'}`} />
-                  <span className="text-xs text-posthog-text-secondary">
-                    {isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
+                <div className="flex items-center space-x-4">
+                  {/* SQL Mode Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-posthog-text-secondary">SQL Mode:</span>
+                    <button
+                      onClick={() => setUseSQLMode(!useSQLMode)}
+                      className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+                        useSQLMode ? 'bg-posthog-accent' : 'bg-posthog-bg-tertiary'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                          useSQLMode ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-posthog-success' : 'bg-posthog-error'}`} />
+                    <span className="text-xs text-posthog-text-secondary">
+                      {isConnected ? 'Connected' : 'Disconnected'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -96,14 +128,22 @@ function App() {
                     </div>
                   </div>
                 ) : charts.length > 0 ? (
-                  charts.map((chart, index) => (
+                  charts.map((chart: any, index) => (
                     <div key={index} className="min-h-[300px]">
-                      <ChartContainer
-                        chart={chart}
-                        isFullscreen={fullscreenChart === index}
-                        onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
-                        constitutionMode={constitutionMode}
-                      />
+                      {useSQLMode && chart.data?.kind ? (
+                        <TypedChartContainer
+                          chart={chart}
+                          isFullscreen={fullscreenChart === index}
+                          onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
+                        />
+                      ) : (
+                        <ChartContainer
+                          chart={chart}
+                          isFullscreen={fullscreenChart === index}
+                          onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
+                          constitutionMode={constitutionMode}
+                        />
+                      )}
                     </div>
                   ))
                 ) : (
