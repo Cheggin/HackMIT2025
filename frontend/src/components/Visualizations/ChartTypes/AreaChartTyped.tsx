@@ -4,7 +4,18 @@ import type { AreaChartData } from '../../../types/charts';
 interface Props { data: AreaChartData }
 
 export default function AreaChartTyped({ data }: Props) {
-  const rows = data.points.map(p => ({ time: new Date(p.time).toLocaleTimeString(), value: p.value }));
+  // Generate times based on current time, going backwards
+  const now = Date.now();
+  const interval = 3000; // 3 seconds between points
+
+  const rows = data.points.map((p, index) => {
+    // Calculate time going backwards from now
+    const timeValue = now - (data.points.length - 1 - index) * interval;
+    return {
+      time: new Date(timeValue).toLocaleTimeString(),
+      value: p.value
+    };
+  });
 
   return (
     <ResponsiveContainer width="100%" height="100%">

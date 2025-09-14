@@ -14,6 +14,7 @@ export interface BarChartBar {
 
 export interface BarChartData {
     bars: BarChartBar[];
+    x_axis_label?: string;
     y_axis_label?: string;
 }
 

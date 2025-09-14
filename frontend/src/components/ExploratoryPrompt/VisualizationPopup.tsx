@@ -71,9 +71,9 @@ export default function VisualizationPopup({
       return (
         <TypedChartContainer
           chart={{
-            type: chartData.graph.type,
             title: chartData.graph.title,
-            data: typedData
+            data: typedData,
+            justification: chartData.graph.justification
           }}
           isFullscreen={false}
           onToggleFullscreen={() => {}}

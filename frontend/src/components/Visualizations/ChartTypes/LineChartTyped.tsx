@@ -29,10 +29,14 @@ const LineChartTyped = React.memo(function LineChartTyped({ data }: Props) {
     return <div className="h-full flex items-center justify-center text-red-500">Circular reference in data</div>;
   }
   
+  // Generate times based on current time, going backwards
+  const now = Date.now();
+  const interval = 3000; // 3 seconds between points
+
   const rows = safePoints.map((p, index) => {
     try {
-      // Ensure time is a valid number
-      const timeValue = typeof p.time === 'number' ? p.time : Date.now() + index;
+      // Calculate time going backwards from now
+      const timeValue = now - (safePoints.length - 1 - index) * interval;
       const timeString = new Date(timeValue).toLocaleTimeString();
       const value = typeof p.value === 'number' ? p.value : 0;
 
