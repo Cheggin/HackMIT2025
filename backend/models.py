@@ -7,6 +7,20 @@ class BaseResponse(BaseModel):
     success: bool
     message: str
 
+# Graph models 
+class GraphBase(BaseModel): 
+    type: str
+    title: str
+    sql_query: str
+
+class GraphCreate(GraphBase):
+    pass
+
+class Graph(GraphBase):
+    id: int
+    created_at: datetime
+    update_at: datetime
+
 # User models
 class UserBase(BaseModel):
     email: EmailStr

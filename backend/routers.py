@@ -1,17 +1,22 @@
-from fastapi import APIRouter, HTTPException, status
-from typing import List
+from fastapi import APIRouter, HTTPException, status, Query
+from typing import List, Dict, Any
 from models import (
     User, UserCreate, UserUpdate, 
+    Graph, GraphCreate, 
     Project, ProjectCreate, ProjectUpdate, 
     BaseResponse, HealthResponse, EchoResponse
 )
 from database import db_service
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create router instances
 api_router = APIRouter(prefix="/api", tags=["API"])
 users_router = APIRouter(prefix="/api/users", tags=["Users"])
 projects_router = APIRouter(prefix="/api/projects", tags=["Projects"])
+graphs_router = APIRouter(prefix="/api/graphs", tags=["Graphs"])
 
 # API Routes
 @api_router.get("/hello")
@@ -226,3 +231,65 @@ async def delete_project(project_id: int):
         )
     
     return BaseResponse(success=True, message="Project deleted successfully")
+
+# Graph Routes
+
+@graphs_router.get("/", response_model=List[Graph])
+async def get_graphs():
+    graphs = await db_service.get_all_graphs()
+    return graphs
+
+@graphs_router.post("/", response_model=Graph, status_code=status.HTTP_201_CREATED)
+async def create_graph(graph: GraphCreate):
+    graph_data = {
+        "type": graph.type,
+        "title": graph.title,
+        "sql_query": graph.sql_query,
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat()
+    }
+    new_graph = await db_service.create_graph(graph_data)
+    if not new_graph:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create graph"
+        )
+    return new_graph
+
+@graphs_router.put("/{graph_id}", response_model=Graph)
+async def update_graph(graph_id: int, graph_update: GraphCreate):
+    existing_graph = await db_service.get_graph(graph_id)
+    if not existing_graph:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Graph not found"
+        )
+
+    update_data = {k: v for k, v in graph_update.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.now().isoformat()
+
+    updated_graph = await db_service.update_graph(graph_id, update_data)
+    if not updated_graph:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update graph"
+        )
+    return updated_graph
+
+@graphs_router.delete("/{graph_id}", response_model=BaseResponse)
+async def delete_graph(graph_id: int):
+    existing_graph = await db_service.get_graph(graph_id)
+    if not existing_graph:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Graph not found"
+        )
+
+    success = await db_service.delete_graph(graph_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete graph"
+        )
+
+    return BaseResponse(success=True, message="Graph deleted successfully")
