@@ -1,11 +1,18 @@
 # FinHog <img src="frontend/public/favicon.svg" alt="FinanceHog Logo" width="32" height="32" style="vertical-align: middle; margin-left: 8px;">
 
-FinanceHog transforms raw **financial transaction streams** into **actionable insights** through **real-time analytics** and **AI-powered visualizations**. Financial institutions generate massive volumes of transactional data every second, but traditional dashboards fail to surface meaningful patterns or anomalies quickly enough for effective decision-making. FinanceHog solves this by **ingesting live transaction events**, **automatically selecting optimal visualization types** based on data characteristics, and enabling **natural language exploration** of financial data - turning overwhelming data streams into clear, actionable intelligence that helps **detect fraud patterns**, **optimize cash flow**, and **identify emerging financial trends** before they become problems.
+FinHog is an **agent-driven analytics platform** that automatically **generates** and **adapts** visualizations to help users understand **thousands** of rows of financial transaction data without manual configuration. Unlike traditional dashboards that require pre-defined queries and static charts, FinHog uses an **AI agent** that continuously analyzes incoming data streams, identifies statistically significant patterns, and creates the most appropriate visualizations in real-time.
 
 ## Technical Implementation
 
 - **Real-time Data Pipeline:** Built a streaming ingestion system using Supabase PostgreSQL with pagination and time-based filtering to handle continuous transaction events from multiple financial institutions
 - **AI-Powered Visualizations:** Integrated Anthropic's Claude API to transform natural language queries into optimized SQL, with automatic chart type selection across 8 visualization types (line, bar, pie, scatter, 3D network, Sankey, funnel, cohort heatmaps)
-- **Type-Safe Frontend:** Developed in React + TypeScript with Vite, implementing a PostHog-inspired dark theme using Tailwind CSS, with Recharts and React Three Fiber for 2D/3D visualizations
 - **Microservices Architecture:** FastAPI backend with Python 3.11, deployed using Vercel (frontend) and localtunnel/ngrok for API tunneling, with full CORS configuration for production
 - **Advanced Features:** PNG export functionality using html-to-image, dynamic SQL query generation with CTE wrapping for time filtering, real-time chart updates with WebSocket-ready architecture, and justification tooltips for AI-recommended visualizations
+
+
+## Stack
+
+- **Frontend:** React + TypeScript (Vite), Recharts/D3.js for 2D visualizations, React Three Fiber for 3D graphs, Tailwind CSS with PostHog-inspired design system, html-to-image for chart exports
+- **Backend:** FastAPI (Python 3.11), Anthropic Claude API for natural language to SQL, localtunnel/ngrok for public API exposure, CORS-enabled for production deployment
+- **Database:** Supabase for real-time event streaming, custom RPC functions for dynamic SQL execution, paginated data fetching with time-based cursors
+
