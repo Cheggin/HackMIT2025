@@ -1,1 +1,11 @@
-# HackMIT2025
+# <img src="frontend/public/vite.svg" alt="FinanceHog Logo" width="32" height="32" style="vertical-align: middle; margin-right: 10px;"> FinanceHog
+
+FinanceHog transforms raw financial transaction streams into actionable insights through real-time analytics and AI-powered visualizations. Financial institutions generate massive volumes of transactional data every second, but traditional dashboards fail to surface meaningful patterns or anomalies quickly enough for effective decision-making. FinanceHog solves this by ingesting live transaction events, automatically selecting optimal visualization types based on data characteristics, and enabling natural language exploration of financial data - turning overwhelming data streams into clear, actionable intelligence that helps detect fraud patterns, optimize cash flow, and identify emerging financial trends before they become problems.
+
+## Technical Implementation
+
+- **Real-time Data Pipeline:** Built a streaming ingestion system using Supabase PostgreSQL with pagination and time-based filtering to handle continuous transaction events from multiple financial institutions
+- **AI-Powered Visualizations:** Integrated Anthropic's Claude API to transform natural language queries into optimized SQL, with automatic chart type selection across 8 visualization types (line, bar, pie, scatter, 3D network, Sankey, funnel, cohort heatmaps)
+- **Type-Safe Frontend:** Developed in React + TypeScript with Vite, implementing a PostHog-inspired dark theme using Tailwind CSS, with Recharts and React Three Fiber for 2D/3D visualizations
+- **Microservices Architecture:** FastAPI backend with Python 3.11, deployed using Vercel (frontend) and localtunnel/ngrok for API tunneling, with full CORS configuration for production
+- **Advanced Features:** PNG export functionality using html-to-image, dynamic SQL query generation with CTE wrapping for time filtering, real-time chart updates with WebSocket-ready architecture, and justification tooltips for AI-recommended visualizations
