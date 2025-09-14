@@ -1,5 +1,5 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { ChartData } from '../../../types';
@@ -135,11 +135,6 @@ function NetworkEdge({ edge, nodes }: { edge: Edge; nodes: Node[] }) {
   const color = edge.isFraud ? COLORS.fraud : COLORS.edgeDefault;
   const opacity = edge.isFraud ? 0.6 : 0.2;
 
-  const points = [
-    source.position,
-    target.position
-  ];
-
   return (
     <line>
       <bufferGeometry>
@@ -151,6 +146,10 @@ function NetworkEdge({ edge, nodes }: { edge: Edge; nodes: Node[] }) {
             target.position.x, target.position.y, target.position.z
           ])}
           itemSize={3}
+          args={[new Float32Array([
+            source.position.x, source.position.y, source.position.z,
+            target.position.x, target.position.y, target.position.z
+          ]), 3]}
         />
       </bufferGeometry>
       <lineBasicMaterial color={color} transparent opacity={opacity} />
@@ -159,7 +158,7 @@ function NetworkEdge({ edge, nodes }: { edge: Edge; nodes: Node[] }) {
 }
 
 function NetworkVisualization({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
-  const [hoveredNode, setHoveredNode] = useState<Node | null>(null);
+  const [, setHoveredNode] = useState<Node | null>(null);
   const simulationActive = useRef(true);
   const frameCount = useRef(0);
 
@@ -260,8 +259,9 @@ export default function NetworkGraph3D({ data }: NetworkGraph3DProps) {
     // Process data into nodes and edges
     data.slice(0, 30).forEach((item, index) => { // Limit to 30 items for performance
       // Create account nodes
-      if (item.sourceAccount) {
-        const accountId = `account-${item.sourceAccount}`;
+      const sourceAccount = (item as any).sourceAccount;
+      if (sourceAccount) {
+        const accountId = `account-${sourceAccount}`;
         if (!nodeMap.has(accountId)) {
           // Position accounts in a circle
           const angle = (accountIndex++ * Math.PI * 2) / 15;
@@ -275,17 +275,19 @@ export default function NetworkGraph3D({ data }: NetworkGraph3DProps) {
             ),
             type: 'account',
             riskScore: 0,
-            amount: item.sourceBalanceBefore || 0,
+            velocity: new THREE.Vector3(0, 0, 0),
+            amount: (item as any).sourceBalanceBefore || 0,
             isFraud: false,
             isFlagged: false,
-            label: item.sourceAccount || 'Unknown',
+            label: sourceAccount || 'Unknown',
             connections: []
           });
         }
       }
 
-      if (item.destAccount) {
-        const accountId = `account-${item.destAccount}`;
+      const destAccount = (item as any).destAccount;
+      if (destAccount) {
+        const accountId = `account-${destAccount}`;
         if (!nodeMap.has(accountId)) {
           const angle = (accountIndex++ * Math.PI * 2) / 15;
           const radius = 8;
@@ -298,10 +300,11 @@ export default function NetworkGraph3D({ data }: NetworkGraph3DProps) {
             ),
             type: 'account',
             riskScore: 0,
-            amount: item.destBalanceBefore || 0,
+            velocity: new THREE.Vector3(0, 0, 0),
+            amount: (item as any).destBalanceBefore || 0,
             isFraud: false,
             isFlagged: false,
-            label: item.destAccount || 'Unknown',
+            label: destAccount || 'Unknown',
             connections: []
           });
         }
@@ -325,15 +328,15 @@ export default function NetworkGraph3D({ data }: NetworkGraph3DProps) {
         amount: item.value || item.count || 0,
         isFraud: item.fraudCount ? item.fraudCount > 0 : false,
         isFlagged: item.fraudRate ? item.fraudRate > 50 : false,
-        label: item.name,
+        label: item.name || 'Transaction',
         connections: []
       };
 
       nodeMap.set(transactionId, transactionNode);
 
       // Create edges
-      if (item.sourceAccount) {
-        const sourceId = `account-${item.sourceAccount}`;
+      if (sourceAccount) {
+        const sourceId = `account-${sourceAccount}`;
         edgeList.push({
           id: `edge-${index}-source`,
           source: sourceId,
@@ -351,8 +354,8 @@ export default function NetworkGraph3D({ data }: NetworkGraph3DProps) {
         transactionNode.connections.push(sourceId);
       }
 
-      if (item.destAccount && item.destAccount !== item.sourceAccount) {
-        const destId = `account-${item.destAccount}`;
+      if (destAccount && destAccount !== sourceAccount) {
+        const destId = `account-${destAccount}`;
         edgeList.push({
           id: `edge-${index}-dest`,
           source: transactionId,
