@@ -1,40 +1,41 @@
 import { useState } from 'react';
 import { Maximize2, Minimize2, Download } from 'lucide-react';
 import { clsx } from 'clsx';
-import LineChartWithHistory from './ChartTypes/LineChartWithHistory';
-import NetworkGraph3D from './ChartTypes/NetworkGraph3D';
-import SankeyComponent from './ChartTypes/SankeyChart';
-import FunnelComponent from './ChartTypes/FunnelChart';
-import CohortHeatmap from './ChartTypes/CohortHeatmap';
-import { CHART_TYPES } from '../../utils/chartRecommendationEngine';
-import type { Chart, ChartData } from '../../types';
+import type { AnyChartData } from '../../types/charts';
+import PieChartTyped from './ChartTypes/PieChartTyped';
+import BarChartTyped from './ChartTypes/BarChartTyped';
+import LineChartTyped from './ChartTypes/LineChartTyped';
+import AreaChartTyped from './ChartTypes/AreaChartTyped';
+import ScatterChartTyped from './ChartTypes/ScatterChartTyped';
 
-interface ChartContainerProps {
-  chart: Chart;
+interface TypedChartContainerProps {
+  chart: { title: string; data: AnyChartData };
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
-  constitutionMode: boolean;
 }
 
-const chartComponents: Record<string, React.ComponentType<{ data: ChartData[] }>> = {
-  [CHART_TYPES.LINE]: LineChartWithHistory,
-  // Fallbacks for legacy non-SQL mode after removing Bar/Pie legacy components
-  [CHART_TYPES.BAR]: LineChartWithHistory,
-  [CHART_TYPES.PIE]: LineChartWithHistory,
-  [CHART_TYPES.NETWORK3D]: NetworkGraph3D,
-  [CHART_TYPES.SANKEY]: SankeyComponent,
-  [CHART_TYPES.FUNNEL]: FunnelComponent,
-  [CHART_TYPES.COHORT_HEATMAP]: CohortHeatmap,
-};
-
-export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen, constitutionMode }: ChartContainerProps) {
+export default function TypedChartContainer({ chart, isFullscreen, onToggleFullscreen }: TypedChartContainerProps) {
   const [isLoading] = useState(false);
-
-  const ChartComponent = chartComponents[chart.type as string] || LineChartWithHistory;
 
   const handleExport = () => {
     console.log('Exporting chart:', chart.title);
-    // In a real app, this would export the chart as an image or CSV
+  };
+
+  const renderChart = () => {
+    switch (chart.data.kind) {
+      case 'pie':
+        return <PieChartTyped data={chart.data.data} />;
+      case 'bar':
+        return <BarChartTyped data={chart.data.data} />;
+      case 'line':
+        return <LineChartTyped data={chart.data.data} />;
+      case 'area':
+        return <AreaChartTyped data={chart.data.data} />;
+      case 'scatter':
+        return <ScatterChartTyped data={chart.data.data} />;
+      default:
+        return <div className="h-full flex items-center justify-center text-posthog-text-secondary">Unsupported chart</div>;
+    }
   };
 
   return (
@@ -75,8 +76,6 @@ export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen
             </button>
           </div>
         </div>
-
-        {/* Justification UI removed */}
       </div>
 
       <div className="flex-1 p-4 overflow-hidden">
@@ -89,9 +88,11 @@ export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen
             </div>
           </div>
         ) : (
-          <ChartComponent data={chart.data} />
+          renderChart()
         )}
       </div>
     </div>
   );
 }
+
+

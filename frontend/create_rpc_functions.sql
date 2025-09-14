@@ -91,3 +91,29 @@ GRANT EXECUTE ON FUNCTION public.test_events_connection TO anon, authenticated;
 -- Test the functions
 SELECT * FROM public.test_events_connection();
 SELECT * FROM public.get_events(5, true);
+
+-- =============================================================
+-- Generic SQL runner used by the frontend to execute graph SQL
+-- WARNING: This uses dynamic SQL. Keep it in the public schema
+-- and ensure only safe, read-only queries are used.
+-- =============================================================
+
+CREATE OR REPLACE FUNCTION public.sql(
+  modifiedquery TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  -- Wrap incoming SELECT in a subquery and aggregate rows as JSONB array
+  EXECUTE format('SELECT COALESCE(jsonb_agg(t), ''[]''::jsonb) FROM (%s) t', modifiedquery)
+  INTO result;
+  RETURN COALESCE(result, '[]'::jsonb);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.sql(TEXT) TO anon, authenticated;

@@ -1,5 +1,6 @@
-import { supabase } from './supabaseClient';
-import type { ChartData, Chart } from '../types';
+import { supabase } from './supabaseDataLoader';
+// Removed legacy Chart/ChartData usage
+import type { AnyChartData, PieChartData, BarChartData, LineChartData, AreaChartData, ScatterChartData } from '../types/charts';
 
 export interface GraphDefinition {
   id: string;
@@ -59,8 +60,8 @@ export async function fetchGraphDefinitions(): Promise<GraphDefinition[]> {
 export async function executeSQLQuery(query: string, before: number): Promise<SQLChartData[]> {
   try {
     // Execute the actual SQL query using the RPC function
-    const modifiedQuery = `WITH events AS (SELECT * FROM public.events WHERE time > ${before})\n`
-    const { data, error } = await supabase.rpc('sql', { modifiedQuery })
+    const modifiedQuery = `WITH events AS (SELECT * FROM public.events WHERE time > ${before})\n${query}`
+    const { data, error } = await supabase.rpc('sql', { modifiedquery: modifiedQuery })
 
     if (error) {
       console.error('Error executing SQL query:', error);
@@ -76,94 +77,110 @@ export async function executeSQLQuery(query: string, before: number): Promise<SQ
 }
 
 // Transform SQL results to chart data format
-export function transformSQLToChartData(
+// Removed legacy transformSQLToChartData
+
+// New: Typed transformer that returns a discriminated union for chart payloads
+export function transformSQLToTypedChartData(
   sqlData: SQLChartData[],
-  chartType: string,
+  chartType: 'pie' | 'bar' | 'line' | 'area' | 'scatter',
   extra?: any
-): ChartData[] {
+): AnyChartData {
   switch (chartType) {
-    case 'line':
-      return sqlData.map(row => ({
-        time: row.time ? new Date(row.time * 1000).toLocaleTimeString() : '',
-        timestamp: row.time || 0,
-        volume: row.value || 0,
-        amount: row.amount || 0,
-        fraudCount: row.fraud_count || 0,
-        count: row.value || 0
-      }));
-
-    case 'bar':
-      return sqlData.map(row => ({
-        name: row.category || '',
-        count: row.value || 0,
-        amount: row.total_amount || 0,
-        avgAmount: row.avg_amount || 0,
-        fraudCount: row.fraud_count || 0,
-        fraudRate: row.fraud_rate || 0
-      }));
-
-    case 'pie':
-      return sqlData.map(row => ({
-        name: row.slice || '',
-        count: row.value || 0,
-        value: row.value || 0,
-        fraudCount: row.fraud_count || 0
-      }));
-
-    case 'sankey':
-      return sqlData.map(row => ({
-        source: row.source || '',
-        target: row.target || '',
-        value: row.value || 0
-      }));
-
-    case 'funnel':
-      return sqlData.map(row => ({
-        name: row.stage || '',
-        value: row.value || 0,
-        percentage: row.percentage || 0
-      }));
-
-    case 'heatmap':
-      // Cohort heatmap needs special processing
-      return sqlData.map(row => ({
-        cohort: row.name || '',
-        period: row.value || 0,
-        count: row.count || 0,
-        amount: row.amount || 0,
-        fraudCount: row.fraud_count || 0
-      }));
-
-    case 'network':
-      // Network graph needs the full graph_data object
-      if (sqlData[0]?.graph_data) {
-        return [sqlData[0].graph_data];
-      }
-      return [];
-
-    default:
-      return sqlData as ChartData[];
+    case 'pie': {
+      const data: PieChartData = {
+        slices: sqlData.map(row => ({
+          slice: String((row as any).slice ?? (row as any).name ?? ''),
+          value: Number((row as any).value ?? (row as any).count ?? 0),
+        })),
+      };
+      return { kind: 'pie', data };
+    }
+    case 'bar': {
+      const data: BarChartData = {
+        bars: sqlData.map(row => ({
+          label: String((row as any).category ?? (row as any).name ?? ''),
+          value: Number((row as any).value ?? (row as any).count ?? 0),
+        })),
+        y_axis_label: extra?.y_axis_label,
+      };
+      return { kind: 'bar', data };
+    }
+    case 'line': {
+      const data: LineChartData = {
+        points: sqlData.map(row => ({
+          time: Number((row as any).time ?? 0),
+          value: Number(
+            (row as any).value ??
+            (row as any).volume ??
+            (row as any).amount ??
+            (row as any).count ?? 0
+          ),
+        })),
+        x_axis_label: extra?.x_axis_label,
+        y_axis_label: extra?.y_axis_label,
+      };
+      return { kind: 'line', data };
+    }
+    case 'area': {
+      const data: AreaChartData = {
+        points: sqlData.map(row => ({
+          time: Number((row as any).time ?? 0),
+          value: Number(
+            (row as any).value ??
+            (row as any).volume ??
+            (row as any).amount ??
+            (row as any).count ?? 0
+          ),
+        })),
+        x_axis_label: extra?.x_axis_label,
+        y_axis_label: extra?.y_axis_label,
+      };
+      return { kind: 'area', data };
+    }
+    case 'scatter': {
+      const data: ScatterChartData = {
+        points: sqlData.map(row => ({
+          x: Number((row as any).x_value ?? 0),
+          y: Number((row as any).y_value ?? 0),
+        })),
+        x_axis_label: extra?.x_axis_label,
+        y_axis_label: extra?.y_axis_label,
+      };
+      return { kind: 'scatter', data };
+    }
+    default: {
+      // Should not happen due to chartType annotation
+      throw new Error(`Unsupported chart type for typed transform: ${chartType as string}`);
+    }
   }
 }
 
 // Generate charts from SQL definitions
-export async function generateChartsFromSQL(before: number): Promise<Chart[]> {
+export async function generateChartsFromSQL(before: number): Promise<{
+  type: 'pie' | 'bar' | 'line' | 'area' | 'scatter' | string;
+  title: string;
+  data: AnyChartData;
+}[]> {
   const graphDefinitions = await fetchGraphDefinitions();
-  const charts: Chart[] = [];
+  const charts: {
+    type: 'pie' | 'bar' | 'line' | 'area' | 'scatter' | string;
+    title: string;
+    data: AnyChartData;
+  }[] = [];
 
   for (const graph of graphDefinitions) {
     try {
       // In production, you'd execute the actual SQL query
       // For now, we'll use mock data or the existing data pipeline
       const sqlData = await executeSQLQuery(graph.sql_query, before);
-      const chartData = transformSQLToChartData(sqlData, graph.type, graph.extra);
+      // Use typed transformer
+      const normalizedType = (graph.type as any) as 'pie' | 'bar' | 'line' | 'area' | 'scatter';
+      const chartData = transformSQLToTypedChartData(sqlData, normalizedType, graph.extra);
 
       charts.push({
         type: graph.type as any,
         title: graph.title,
         data: chartData,
-        justification: `Generated from SQL query: ${graph.title}`,
-        priority: charts.length + 1
       });
     } catch (error) {
       console.error(`Error generating chart ${graph.title}:`, error);

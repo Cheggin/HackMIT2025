@@ -3,6 +3,7 @@ import TopBar from './components/Navigation/TopBar';
 import SideBar from './components/Navigation/SideBar';
 import FinancialDataTable from './components/DataTable/FinancialDataTable';
 import ChartContainer from './components/Visualizations/ChartContainer';
+import TypedChartContainer from './components/Visualizations/TypedChartContainer';
 import ConstitutionToggle from './components/Controls/ConstitutionToggle';
 import SettingsPanel from './components/Controls/SettingsPanel';
 import { useFinancialData } from './hooks/useFinancialData';
@@ -32,7 +33,7 @@ function App() {
   const {
     charts: sqlCharts,
     isLoading: sqlLoading,
-    error: sqlError
+    error: _sqlError
   } = useSQLCharts(updateFrequency);
 
   // Choose which charts to display
@@ -127,14 +128,22 @@ function App() {
                     </div>
                   </div>
                 ) : charts.length > 0 ? (
-                  charts.map((chart, index) => (
+                  charts.map((chart: any, index) => (
                     <div key={index} className="min-h-[300px]">
-                      <ChartContainer
-                        chart={chart}
-                        isFullscreen={fullscreenChart === index}
-                        onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
-                        constitutionMode={constitutionMode}
-                      />
+                      {useSQLMode && chart.data?.kind ? (
+                        <TypedChartContainer
+                          chart={chart}
+                          isFullscreen={fullscreenChart === index}
+                          onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
+                        />
+                      ) : (
+                        <ChartContainer
+                          chart={chart}
+                          isFullscreen={fullscreenChart === index}
+                          onToggleFullscreen={() => setFullscreenChart(fullscreenChart === index ? null : index)}
+                          constitutionMode={constitutionMode}
+                        />
+                      )}
                     </div>
                   ))
                 ) : (
