@@ -22,6 +22,7 @@ class SupabaseClient:
                 self.client = None
                 return
             
+            # Use the correct Supabase client initialization
             self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
             logger.info("Supabase client initialized successfully")
         except Exception as e:
@@ -42,7 +43,7 @@ class DatabaseService:
     def __init__(self):
         self.client = supabase_client.client
 
-    async def agent_query(self, limit: int) -> List[Dict[str, Any]]:
+    async def agent_query(self, limit: int) -> list[dict[str, any]]:
         """Query for the top limit events in the database by time descending"""
         if not self.client:
             return "Error: Supabase client not available"

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Query
 from typing import List, Dict, Any
 from models import (
+    AgentQueryResponse, User, UserCreate, UserUpdate, 
     User, UserCreate, UserUpdate, 
     Graph, GraphCreate, 
     Project, ProjectCreate, ProjectUpdate, 
@@ -43,8 +44,9 @@ async def health_check():
 # User Routes
 
 @api_router.get("/agent-query")
-async def agent_query(limit: int = 100) -> List[dict[str, any]]:
+async def agent_query(limit: int = 100) -> AgentQueryResponse:
     result = await db_service.agent_query(limit)
+    return AgentQueryResponse(events=result)
     return result
 
 @users_router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 
 # Base response model
@@ -20,6 +20,9 @@ class Graph(GraphBase):
     id: int
     created_at: datetime
     update_at: datetime
+
+class AgentQueryResponse(BaseModel):
+    events: List[dict[str, Any]]
 
 # User models
 class UserBase(BaseModel):
