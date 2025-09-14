@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Maximize2, Minimize2, Download } from 'lucide-react';
+import { Maximize2, Minimize2, Download, Info } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { AnyChartData } from '../../types/charts';
 import PieChartTyped from './ChartTypes/PieChartTyped';
@@ -7,15 +7,17 @@ import BarChartTyped from './ChartTypes/BarChartTyped';
 import LineChartTyped from './ChartTypes/LineChartTyped';
 import AreaChartTyped from './ChartTypes/AreaChartTyped';
 import ScatterChartTyped from './ChartTypes/ScatterChartTyped';
+import JustificationPopup from './JustificationPopup';
 
 interface TypedChartContainerProps {
-  chart: { title: string; data: AnyChartData };
+  chart: { title: string; data: AnyChartData; justification?: string };
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
 }
 
 export default function TypedChartContainer({ chart, isFullscreen, onToggleFullscreen }: TypedChartContainerProps) {
   const [isLoading] = useState(false);
+  const [showJustification, setShowJustification] = useState(false);
 
   const handleExport = () => {
     console.log('Exporting chart:', chart.title);
@@ -56,6 +58,15 @@ export default function TypedChartContainer({ chart, isFullscreen, onToggleFulls
             </span>
           </div>
           <div className="flex items-center space-x-2">
+            {chart.justification && (
+              <button
+                onClick={() => setShowJustification(!showJustification)}
+                className="p-1.5 hover:bg-posthog-bg-tertiary rounded transition-colors relative"
+                title="Show justification"
+              >
+                <Info className="w-4 h-4 text-posthog-accent" />
+              </button>
+            )}
             <button
               onClick={handleExport}
               className="p-1.5 hover:bg-posthog-bg-tertiary rounded transition-colors"
@@ -91,6 +102,14 @@ export default function TypedChartContainer({ chart, isFullscreen, onToggleFulls
           renderChart()
         )}
       </div>
+
+      {showJustification && chart.justification && (
+        <JustificationPopup
+          title={chart.title}
+          justification={chart.justification}
+          onClose={() => setShowJustification(false)}
+        />
+      )}
     </div>
   );
 }

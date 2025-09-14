@@ -199,8 +199,7 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
           <span>Showing {filteredEvents.length} of {events.length} events</span>
           {datasetInfo && (
             <div className="flex items-center space-x-4">
-              <span>Dataset: {datasetInfo.percentageProcessed?.toFixed(1)}% processed</span>
-              <span className="text-posthog-accent">Charts: {datasetInfo.currentChartDataSize || 0}/{datasetInfo.chartWindowSize || 1000}</span>
+              <span className="text-posthog-accent">Charts: 4/4</span>
               <span className="text-posthog-error">Fraud: {datasetInfo.fraudCount || 0}</span>
               <span className="text-posthog-warning">Flagged: {datasetInfo.flaggedCount || 0}</span>
             </div>

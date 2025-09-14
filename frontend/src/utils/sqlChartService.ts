@@ -8,6 +8,7 @@ export interface GraphDefinition {
   title: string;
   sql_query: string;
   extra: any;
+  justification?: string;
 }
 
 export interface SQLChartData {
@@ -165,6 +166,7 @@ export async function generateChartsFromSQL(before: number): Promise<{
   type: 'pie' | 'bar' | 'line' | 'area' | 'scatter' | string;
   title: string;
   data: AnyChartData;
+  justification?: string;
 }[]> {
   console.log('Generating charts from SQL with before timestamp:', before);
   
@@ -175,6 +177,7 @@ export async function generateChartsFromSQL(before: number): Promise<{
     type: 'pie' | 'bar' | 'line' | 'area' | 'scatter' | string;
     title: string;
     data: AnyChartData;
+    justification?: string;
   }[] = [];
 
   for (const graph of graphDefinitions) {
@@ -193,6 +196,7 @@ export async function generateChartsFromSQL(before: number): Promise<{
         type: graph.type as any,
         title: graph.title,
         data: chartData,
+        justification: graph.justification,
       });
       
       console.log(`Successfully created chart: ${graph.title}`);
