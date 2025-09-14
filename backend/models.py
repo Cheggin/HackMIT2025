@@ -13,6 +13,7 @@ class GraphBase(BaseModel):
     title: str
     sql_query: str
     extra: Optional[dict] = None
+    justification: Optional[str] = None
 
 class GraphCreate(GraphBase):
     pass

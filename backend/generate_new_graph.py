@@ -118,6 +118,7 @@ def call_anthropic_generate_graph(prompt: str) -> GraphBase:
         title=graph.title.strip(),
         sql_query=graph.sql_query.strip(),
         extra=graph.extra or {},
+        justification=getattr(graph, "justification", None),
     )
     return normalized
 

@@ -68,7 +68,8 @@ async def create_graph(graph: GraphCreate):
         "type": graph.type,
         "title": graph.title,
         "sql_query": graph.sql_query,
-        "extra": graph.extra
+        "extra": graph.extra,
+        "justification": graph.justification
     }
     new_graph = await db_service.create_graph(graph_data)
     if not new_graph:
