@@ -10,7 +10,7 @@ import {
 import type { FinancialEvent, Chart, Anomaly, DatasetInfo } from '../types';
 
 const CHART_WINDOW_SIZE = 100; // Process only last 100 events for charts (for sliding window)
-const TABLE_HISTORY_SIZE = 200; // Keep last 200 events in table
+const TABLE_HISTORY_SIZE = 500; // Keep last 500 events in table (increased for better history)
 
 interface UseFinancialDataReturn {
   events: FinancialEvent[];
@@ -42,21 +42,28 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const updateCounterRef = useRef(0);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const eventBatchRef = useRef<FinancialEvent[]>([]);
+  const lastFetchTimeRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
-  const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false) => {
-    // Always update charts on initial load or when we have enough data
-    if (forceUpdate || data.length > 0) {
+  const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false, eventCount = 1) => {
+    // Force update on initial load
+    if (forceUpdate) {
       const recommendations = recommendCharts(data, 4);
       setCharts(recommendations);
       updateCounterRef.current = 0;
-    } else {
-      // Update charts every 3 new events for smoother sliding window
-      updateCounterRef.current++;
-      if (updateCounterRef.current >= 3) {
-        const recommendations = recommendCharts(data, 4);
-        setCharts(recommendations);
-        updateCounterRef.current = 0;
-      }
+      return;
+    }
+
+    // Accumulate event count
+    updateCounterRef.current += eventCount;
+
+    // Only update when we have exactly 3 or more events
+    if (updateCounterRef.current >= 3) {
+      console.log(`Updating charts with ${updateCounterRef.current} accumulated events`);
+      const recommendations = recommendCharts(data, 4);
+      setCharts(recommendations);
+      updateCounterRef.current = 0;
     }
   }, []);
 
@@ -101,8 +108,10 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
       const updatedChartData = [...prevChartData, ...uniqueChartEvents];
       const windowedData = updatedChartData.slice(-CHART_WINDOW_SIZE);
 
-      // Update charts with the windowed data
-      updateCharts(windowedData, isInitialLoad);
+      // Only update charts if we have new events (not on duplicates)
+      if (uniqueChartEvents.length > 0) {
+        updateCharts(windowedData, isInitialLoad, uniqueChartEvents.length);
+      }
 
       return windowedData;
     });
@@ -147,12 +156,32 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
         addEvents(initialTransactions, true); // Pass true for initial load
       }
 
-      // Set up polling for new transactions
+      // Set up polling for new transactions with debouncing
       intervalRef.current = setInterval(async () => {
+        // Prevent concurrent fetches
+        if (isFetchingRef.current) {
+          console.log('Skipping fetch - already fetching');
+          return;
+        }
+
+        // Debounce: ensure minimum time between fetches
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTimeRef.current;
+        if (timeSinceLastFetch < 2500) { // Minimum 2.5 seconds between fetches
+          console.log(`Skipping fetch - only ${timeSinceLastFetch}ms since last fetch`);
+          return;
+        }
+
+        isFetchingRef.current = true;
+        lastFetchTimeRef.current = now;
+
         const newTransactions = await fetchNewTransactions();
         if (newTransactions.length > 0) {
+          console.log(`Fetched ${newTransactions.length} events at ${new Date().toISOString()}`);
           addEvents(newTransactions);
         }
+
+        isFetchingRef.current = false;
       }, updateFrequency);
 
       // Comment out real-time subscription to avoid duplicates

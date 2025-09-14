@@ -5,8 +5,7 @@ export const CHART_TYPES = {
   BAR: 'bar',
   PIE: 'pie',
   SANKEY: 'sankey',
-  FUNNEL: 'funnel',
-  NETWORK3D: 'network3d'
+  FUNNEL: 'funnel'
 } as const;
 
 export type ChartType = typeof CHART_TYPES[keyof typeof CHART_TYPES];
@@ -178,37 +177,14 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
   }
 
   // Add pie chart for transaction type distribution
-  if (events.length > 5) {
+  if (events.length > 20) {
     const rule = constitutionRules.rules.find(r => r.id === 'density_pattern')!;
     recommendations.push({
       type: CHART_TYPES.PIE,
       title: 'Transaction Type Distribution',
       justification: `Shows the proportion of different transaction types. Analyzing ${events.length} transactions.`,
       data: preparePieData(events),
-      priority: 4
-    });
-  }
-
-  // Add Sankey for flow analysis - high priority
-  if (events.length > 10) {
-    const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
-    recommendations.push({
-      type: CHART_TYPES.SANKEY,
-      title: 'Transaction Flow Analysis',
-      justification: `${rule.justification}. Visualizing money flow between ${Object.keys(characteristics.hasCategoricalBreakdown).length} transaction types.`,
-      data: prepareSankeyData(events),
       priority: 3
-    });
-  }
-
-  // Add Network3D for advanced visualization - lower priority
-  if (events.length > 15) {
-    recommendations.push({
-      type: CHART_TYPES.NETWORK3D,
-      title: '3D Network Visualization',
-      justification: `Interactive 3D visualization showing account relationships and transaction flows. Analyzing ${events.length} transactions across multiple accounts.`,
-      data: prepareNetworkData(events),
-      priority: 5
     });
   }
 
@@ -222,6 +198,18 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
     priority: 4
   });
 
+  // Add Sankey for flow analysis
+  if (Object.keys(characteristics.hasCategoricalBreakdown).length > 2 &&
+      Object.keys(characteristics.hasFlowPatterns).length > 1) {
+    const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
+    recommendations.push({
+      type: CHART_TYPES.SANKEY,
+      title: 'Transaction Flow Analysis',
+      justification: `${rule.justification}. Visualizing flows between ${Object.keys(characteristics.hasCategoricalBreakdown).length} event types and ${Object.keys(characteristics.hasFlowPatterns).length} statuses.`,
+      data: prepareSankeyData(events),
+      priority: 5
+    });
+  }
 
   return recommendations.slice(0, maxCharts).sort((a, b) => a.priority - b.priority);
 }
@@ -295,80 +283,6 @@ function prepareCategoricalData(events: FinancialEvent[]): ChartData[] {
       fraudRate: data.count > 0 ? (data.fraudCount / data.count) * 100 : 0
     };
   });
-}
-
-function prepareNetworkData(events: FinancialEvent[]): ChartData[] {
-  // Prepare data for 3D network visualization
-  // Group by account relationships and include fraud indicators
-  const accountMap = new Map<string, ChartData>();
-
-  events.forEach(event => {
-    // Source account node
-    if (event.sourceAccount) {
-      if (!accountMap.has(event.sourceAccount)) {
-        accountMap.set(event.sourceAccount, {
-          name: event.sourceAccount,
-          sourceAccount: event.sourceAccount,
-          destAccount: '',
-          count: 0,
-          value: 0,
-          fraudCount: 0,
-          fraudRate: 0,
-          sourceBalanceBefore: event.sourceBalanceBefore,
-          sourceBalanceAfter: event.sourceBalanceAfter
-        });
-      }
-      const sourceData = accountMap.get(event.sourceAccount)!;
-      sourceData.count! += 1;
-      sourceData.value! += event.amount;
-      if (event.isFraud) sourceData.fraudCount! += 1;
-    }
-
-    // Destination account node
-    if (event.destAccount) {
-      if (!accountMap.has(event.destAccount)) {
-        accountMap.set(event.destAccount, {
-          name: event.destAccount,
-          sourceAccount: '',
-          destAccount: event.destAccount,
-          count: 0,
-          value: 0,
-          fraudCount: 0,
-          fraudRate: 0,
-          destBalanceBefore: event.destBalanceBefore,
-          destBalanceAfter: event.destBalanceAfter
-        });
-      }
-      const destData = accountMap.get(event.destAccount)!;
-      destData.count! += 1;
-      destData.value! += event.amount;
-      if (event.isFraud) destData.fraudCount! += 1;
-    }
-  });
-
-  // Calculate fraud rates
-  accountMap.forEach(data => {
-    if (data.count! > 0) {
-      data.fraudRate = (data.fraudCount! / data.count!) * 100;
-    }
-  });
-
-  // Also include transaction-level data for edges
-  const transactionData = events.slice(-50).map(event => ({
-    name: `${event.transactionType}: $${event.amount.toFixed(0)}`,
-    sourceAccount: event.sourceAccount,
-    destAccount: event.destAccount,
-    count: 1,
-    value: event.amount,
-    fraudCount: event.isFraud ? 1 : 0,
-    fraudRate: event.isFraud ? 100 : 0,
-    sourceBalanceBefore: event.sourceBalanceBefore,
-    sourceBalanceAfter: event.sourceBalanceAfter,
-    destBalanceBefore: event.destBalanceBefore,
-    destBalanceAfter: event.destBalanceAfter
-  }));
-
-  return [...Array.from(accountMap.values()), ...transactionData];
 }
 
 function preparePieData(events: FinancialEvent[]): ChartData[] {

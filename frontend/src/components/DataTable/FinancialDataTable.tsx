@@ -18,22 +18,30 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const prevEventCountRef = useRef(0);
+  const prevEventIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
     // Skip tracking on initial load
     if (isInitialLoadRef.current) {
-      prevEventCountRef.current = events.length;
+      events.forEach(event => prevEventIdsRef.current.add(event.id));
       isInitialLoadRef.current = false;
       return;
     }
 
-    // Track new events only after initial load
-    if (events.length > prevEventCountRef.current) {
-      const newEventsCount = events.length - prevEventCountRef.current;
-      const newEvents = events.slice(-newEventsCount);
+    // Find new events by comparing IDs
+    const currentEventIds = new Set(events.map(e => e.id));
+    const newEvents: FinancialEvent[] = [];
 
+    events.forEach(event => {
+      if (!prevEventIdsRef.current.has(event.id)) {
+        newEvents.push(event);
+      }
+    });
+
+    // Track new events for animation
+    if (newEvents.length > 0) {
+      console.log(`Found ${newEvents.length} new events to animate`);
 
       // Add new event IDs to highlighted set
       const newHighlightedIds = new Set(highlightedEventIds);
@@ -63,7 +71,9 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
         });
       }, 2000);
     }
-    prevEventCountRef.current = events.length;
+
+    // Update the previous IDs reference
+    prevEventIdsRef.current = currentEventIds;
   }, [events, autoScroll]);
 
   const filteredEvents = events.filter((event: FinancialEvent) => {
