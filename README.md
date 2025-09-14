@@ -1,4 +1,4 @@
-# <img src="frontend/public/financehog-logo.svg"> FinanceHog
+# <img src="frontend/public/favicon.svg"> FinanceHog
 
 FinanceHog transforms raw financial transaction streams into actionable insights through real-time analytics and AI-powered visualizations. Financial institutions generate massive volumes of transactional data every second, but traditional dashboards fail to surface meaningful patterns or anomalies quickly enough for effective decision-making. FinanceHog solves this by ingesting live transaction events, automatically selecting optimal visualization types based on data characteristics, and enabling natural language exploration of financial data - turning overwhelming data streams into clear, actionable intelligence that helps detect fraud patterns, optimize cash flow, and identify emerging financial trends before they become problems.
 
