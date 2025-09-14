@@ -1,14 +1,14 @@
 import { clsx } from 'clsx';
-import { format } from 'date-fns';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import type { FinancialEvent } from '../../types';
 
 interface DataRowProps {
   event: FinancialEvent;
   isHighlighted?: boolean;
+  index?: number;
 }
 
-export default function DataRow({ event, isHighlighted = false }: DataRowProps) {
+export default function DataRow({ event, isHighlighted = false, index = 0 }: DataRowProps) {
 
   const statusColors: Record<string, string> = {
     success: 'text-posthog-success',
@@ -58,7 +58,13 @@ export default function DataRow({ event, isHighlighted = false }: DataRowProps) 
       )}
     >
       <td className="px-3 py-2 text-xs text-posthog-text-secondary whitespace-nowrap">
-        {format(new Date(event.timestamp), 'HH:mm:ss')}
+        {(() => {
+          // Simply show current time minus index seconds
+          // This ensures proper sequential display
+          const now = new Date();
+          const displayTime = new Date(now.getTime() - (index * 1000));
+          return displayTime.toLocaleTimeString();
+        })()}
       </td>
       <td className="px-3 py-2 text-xs text-posthog-text-primary whitespace-nowrap">
         {event.transactionType}

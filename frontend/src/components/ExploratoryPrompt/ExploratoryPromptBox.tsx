@@ -8,7 +8,7 @@ interface ExploratoryPromptBoxProps {
 
 export default function ExploratoryPromptBox({
   onSubmit,
-  placeholder = 'Try: "Show monthly net payouts by location" or "Find anomalies in employer tax spend"',
+  placeholder = 'Try: "Create a pie chart based on transaction size."',
   isLoading = false
 }: ExploratoryPromptBoxProps) {
   const [prompt, setPrompt] = useState('');

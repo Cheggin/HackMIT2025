@@ -250,13 +250,14 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
               className="bg-posthog-bg-secondary"
             >
               {/* Render all rows without spacers */}
-              {filteredEvents.slice(-100).reverse().map((event) => {
+              {filteredEvents.slice(-100).reverse().map((event, index) => {
                 const isHighlighted = highlightedEventIds.has(event.id);
 
                 return (
                   <DataRow
                     key={event.id}
                     event={event}
+                    index={index}
                     isHighlighted={isHighlighted}
                   />
                 );
