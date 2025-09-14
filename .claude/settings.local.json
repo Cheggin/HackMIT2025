@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm run lint)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git reset:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(psql:*)",
+      "Bash(git restore:*)",
+      "Bash(find:*)",
+      "Bash(git stash show:*)",
+      "Bash(git stash drop:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(pip --version)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(pip install:*)",
+      "Bash(uvicorn:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,246 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --posthog-bg-primary: #1C1C1C;
+    --posthog-bg-secondary: #2D2D2D;
+    --posthog-bg-tertiary: #383838;
+    --posthog-accent: #F54E00;
+    --posthog-accent-hover: #FF6B1A;
+    --posthog-text-primary: #FFFFFF;
+    --posthog-text-secondary: #8F8F8F;
+    --posthog-border: #3D3D3D;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--posthog-bg-primary);
+    color: var(--posthog-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  .glass-morphism {
+    background: rgba(45, 45, 45, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(61, 61, 61, 0.5);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--posthog-bg-tertiary) var(--posthog-bg-secondary);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--posthog-bg-secondary);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--posthog-bg-tertiary);
+    border-radius: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--posthog-accent);
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-track {
+    background: var(--posthog-bg-tertiary);
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--posthog-accent);
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    margin-top: -6px;
+  }
+
+  input[type="range"]::-moz-range-track {
+    background: var(--posthog-bg-tertiary);
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    background: var(--posthog-accent);
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    border: none;
+  }
+
+  input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--posthog-border);
+    border-radius: 3px;
+    background: var(--posthog-bg-primary);
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:checked {
+    background: var(--posthog-accent);
+    border-color: var(--posthog-accent);
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: '✓';
+    display: block;
+    text-align: center;
+    color: white;
+    font-size: 12px;
+    line-height: 14px;
+  }
+}
+
+@layer utilities {
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px rgba(245, 78, 0, 0.5);
+    }
+    to {
+      box-shadow: 0 0 20px rgba(245, 78, 0, 0.8);
+    }
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--posthog-accent) 0%, var(--posthog-accent-hover) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Smooth fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Fast row entry - quick fade and slide */
+  @keyframes smoothSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Gentle glow for new rows */
+  @keyframes gentleGlow {
+    0% {
+      box-shadow: inset 0 0 0 rgba(245, 78, 0, 0), 0 0 0 rgba(245, 78, 0, 0);
+    }
+    50% {
+      box-shadow: inset 0 0 20px rgba(245, 78, 0, 0.1), 0 0 10px rgba(245, 78, 0, 0.05);
+    }
+    100% {
+      box-shadow: inset 0 0 0 rgba(245, 78, 0, 0), 0 0 0 rgba(245, 78, 0, 0);
+    }
+  }
+
+  /* Space expansion animation */
+  @keyframes expandHeight {
+    from {
+      max-height: 0;
+      margin-bottom: 0;
+    }
+    to {
+      max-height: 60px;
+      margin-bottom: 0;
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.8s ease-in-out;
+  }
+
+  .animate-smoothSlideIn {
+    animation: smoothSlideIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  .animate-gentleGlow {
+    animation: gentleGlow 3s ease-in-out;
+  }
+
+  .animate-expandHeight {
+    animation: expandHeight 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  /* Smooth transitions for table rows */
+  .smooth-row-transition {
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition-property: opacity, transform, background-color, border-color, max-height, padding;
+  }
+
+  /* Initial state for hidden rows */
+  .row-hidden {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.97);
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  /* Entering state for rows */
+  .row-entering {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 60px;
+    overflow: visible;
+  }
+
+  /* Visible state for rows */
+  .row-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 60px;
+  }
+}
