@@ -44,11 +44,30 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
   const isFetchingRef = useRef(false);
 
   const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false, eventCount = 1) => {
+    // Safety check: prevent excessive updates
+    if (data.length > 1000) {
+      console.warn('Too many events, limiting to 1000 to prevent performance issues');
+      data = data.slice(-1000);
+    }
+
+    // Check for circular references in data
+    try {
+      JSON.stringify(data);
+    } catch (error) {
+      console.error('Circular reference detected in financial data:', error);
+      return;
+    }
+
     // Force update on initial load
     if (forceUpdate) {
-      const recommendations = recommendCharts(data, 4);
-      setCharts(recommendations);
-      updateCounterRef.current = 0;
+      try {
+        const recommendations = recommendCharts(data, 4);
+        setCharts(recommendations);
+        updateCounterRef.current = 0;
+      } catch (error) {
+        console.error('Error in force update:', error);
+        updateCounterRef.current = 0;
+      }
       return;
     }
 
@@ -58,9 +77,15 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     // Only update when we have exactly 3 or more events
     if (updateCounterRef.current >= 3) {
       console.log(`Updating charts with ${updateCounterRef.current} accumulated events`);
-      const recommendations = recommendCharts(data, 4);
-      setCharts(recommendations);
-      updateCounterRef.current = 0;
+      try {
+        const recommendations = recommendCharts(data, 4);
+        setCharts(recommendations);
+        updateCounterRef.current = 0;
+      } catch (error) {
+        console.error('Error updating charts:', error);
+        // Reset counter to prevent infinite retries
+        updateCounterRef.current = 0;
+      }
     }
   }, []);
 

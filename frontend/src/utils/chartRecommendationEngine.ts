@@ -266,32 +266,38 @@ function prepareTimeSeriesData(events: FinancialEvent[]): ChartData[] {
 
   // Take only the last 50 transactions for a sliding window view
   const recentEvents = events.slice(-50);
-
-  // Create individual data points for each transaction
-  // This gives us a smooth sliding window effect
+  
+  // Limit to prevent excessive computation
+  const maxPoints = Math.min(recentEvents.length, 20);
   const now = new Date();
-  const dataPoints = recentEvents.map((event, index) => {
+  
+  // Create data points with simplified logic to prevent recursion
+  const dataPoints: ChartData[] = [];
+  
+  for (let i = 0; i < maxPoints; i++) {
+    const event = recentEvents[i];
+    if (!event) continue;
+    
     // Use current time and work backwards in 3-second intervals
-    const secondsAgo = (recentEvents.length - 1 - index) * 3;
+    const secondsAgo = (maxPoints - 1 - i) * 3;
     const timestamp = new Date(now.getTime() - (secondsAgo * 1000));
     const timeKey = `${String(timestamp.getHours()).padStart(2, '0')}:${String(timestamp.getMinutes()).padStart(2, '0')}:${String(timestamp.getSeconds()).padStart(2, '0')}`;
 
-    // Calculate running totals up to this point
-    const eventsUpToNow = recentEvents.slice(0, index + 1);
-    const last50Events = eventsUpToNow.slice(-50); // Consider last 50 for running average
+    // Simple aggregation without nested slicing
+    const eventsUpToNow = recentEvents.slice(0, i + 1);
+    const totalAmount = eventsUpToNow.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const fraudCount = eventsUpToNow.filter(e => e.isFraud).length;
 
-    return {
+    dataPoints.push({
       time: timeKey,
-      volume: last50Events.length,
-      amount: last50Events.reduce((sum, e) => sum + (e.amount || 0), 0),
-      fraudCount: last50Events.filter(e => e.isFraud).length,
+      volume: eventsUpToNow.length,
+      amount: totalAmount,
+      fraudCount: fraudCount,
       timestamp: timestamp.getTime()
-    };
-  });
+    });
+  }
 
-  // Always return at least some data if we have any events
-  const pointsToReturn = Math.min(dataPoints.length, 20);
-  return dataPoints.slice(-pointsToReturn);
+  return dataPoints;
 }
 
 function prepareCategoricalData(events: FinancialEvent[]): ChartData[] {

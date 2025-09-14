@@ -53,7 +53,13 @@ class DataLoaderState {
   }
 
   setPaginationState(state: Partial<PaginationState>): void {
+    const oldCursor = this.pagination.cursor;
     this.pagination = { ...this.pagination, ...state };
+    
+    // Emit event if cursor changed
+    if (oldCursor !== this.pagination.cursor) {
+      paginationEvents.emit();
+    }
   }
 
   isReady(): boolean {
@@ -64,13 +70,21 @@ class DataLoaderState {
     this.isInitialized = value;
   }
 
+  hasValidCursor(): boolean {
+    return this.isInitialized && this.pagination.cursor !== null;
+  }
+
   reset(): void {
     this.pagination = {
       cursor: null,
       hasMore: true,
       totalCount: 0
     };
-    this.isInitialized = false;
+    // Preserve initialization so consumers waiting on a valid cursor
+    // don't get stuck after a reset. Initialization is handled by
+    // initializeSupabaseConnection() and should remain true for the
+    // lifetime of the session once established.
+    // this.isInitialized remains unchanged here on purpose.
   }
 }
 
@@ -391,9 +405,34 @@ export function getPaginationState(): PaginationState {
   return state.getPaginationState();
 }
 
+export function hasValidCursor(): boolean {
+  return state.hasValidCursor();
+}
+
 export function resetPagination(): void {
   state.reset();
 }
+
+// Event emitter for pagination changes
+class PaginationEventEmitter {
+  private listeners: (() => void)[] = [];
+
+  subscribe(callback: () => void): () => void {
+    this.listeners.push(callback);
+    return () => {
+      const index = this.listeners.indexOf(callback);
+      if (index > -1) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  emit(): void {
+    this.listeners.forEach(callback => callback());
+  }
+}
+
+export const paginationEvents = new PaginationEventEmitter();
 
 // Legacy compatibility (for existing code)
 export async function fetchNewTransactions(): Promise<FinancialEvent[]> {

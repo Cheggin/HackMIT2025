@@ -60,7 +60,11 @@ export async function fetchGraphDefinitions(): Promise<GraphDefinition[]> {
 export async function executeSQLQuery(query: string, before: number): Promise<SQLChartData[]> {
   try {
     // Execute the actual SQL query using the RPC function
-    const modifiedQuery = `WITH events AS (SELECT * FROM public.events WHERE time > ${before})\n${query}`
+    const modifiedQuery = `WITH events AS (SELECT * FROM public.events WHERE time <= ${before})\n${query}`
+    
+    console.log('Executing SQL query with before timestamp:', before);
+    console.log('Modified query:', modifiedQuery);
+    
     const { data, error } = await supabase.rpc('sql', { modifiedquery: modifiedQuery })
 
     if (error) {
@@ -68,6 +72,7 @@ export async function executeSQLQuery(query: string, before: number): Promise<SQ
       return [];
     }
 
+    console.log('SQL query result:', data);
     // The RPC function returns JSONB, which should be an array of objects
     return data || [];
   } catch (error) {
@@ -161,7 +166,11 @@ export async function generateChartsFromSQL(before: number): Promise<{
   title: string;
   data: AnyChartData;
 }[]> {
+  console.log('Generating charts from SQL with before timestamp:', before);
+  
   const graphDefinitions = await fetchGraphDefinitions();
+  console.log('Found graph definitions:', graphDefinitions.length);
+  
   const charts: {
     type: 'pie' | 'bar' | 'line' | 'area' | 'scatter' | string;
     title: string;
@@ -170,9 +179,12 @@ export async function generateChartsFromSQL(before: number): Promise<{
 
   for (const graph of graphDefinitions) {
     try {
-      // In production, you'd execute the actual SQL query
-      // For now, we'll use mock data or the existing data pipeline
+      console.log(`Processing graph: ${graph.title} (${graph.type})`);
+      
+      // Execute the actual SQL query with the before timestamp
       const sqlData = await executeSQLQuery(graph.sql_query, before);
+      console.log(`SQL data for ${graph.title}:`, sqlData);
+      
       // Use typed transformer
       const normalizedType = (graph.type as any) as 'pie' | 'bar' | 'line' | 'area' | 'scatter';
       const chartData = transformSQLToTypedChartData(sqlData, normalizedType, graph.extra);
@@ -182,11 +194,14 @@ export async function generateChartsFromSQL(before: number): Promise<{
         title: graph.title,
         data: chartData,
       });
+      
+      console.log(`Successfully created chart: ${graph.title}`);
     } catch (error) {
       console.error(`Error generating chart ${graph.title}:`, error);
     }
   }
 
+  console.log(`Generated ${charts.length} charts total`);
   return charts;
 }
 
