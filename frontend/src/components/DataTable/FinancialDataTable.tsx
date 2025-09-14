@@ -14,13 +14,12 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
   const [autoScroll, setAutoScroll] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [newEventIds, setNewEventIds] = useState<Map<string, number>>(new Map());
+  const [highlightedEventIds, setHighlightedEventIds] = useState<Set<string>>(new Set());
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevEventCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Skip tracking on initial load
@@ -32,46 +31,37 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
 
     // Track new events only after initial load
     if (events.length > prevEventCountRef.current) {
-      // Clear any existing animation timeout first
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-        // Immediately clear old animations
-        setNewEventIds(new Map());
-      }
-
       const newEventsCount = events.length - prevEventCountRef.current;
       const newEvents = events.slice(-newEventsCount);
 
-      // Small delay to ensure old animations are cleared
+
+      // Add new event IDs to highlighted set
+      const newHighlightedIds = new Set(highlightedEventIds);
+      newEvents.forEach(event => {
+        newHighlightedIds.add(event.id);
+      });
+      setHighlightedEventIds(newHighlightedIds);
+
+      // Smooth scroll after a short delay
+      if (autoScroll && scrollContainerRef.current) {
+        setTimeout(() => {
+          scrollContainerRef.current?.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+
+      // Remove from highlighted set after 2 seconds
       setTimeout(() => {
-        const newIdsMap = new Map<string, number>();
-
-        // Create staggered delays for only the first 3 new rows
-        newEvents.slice(0, 3).forEach((event, index) => {
-          // Stagger by 200ms per row for cleaner appearance
-          newIdsMap.set(event.id, index * 200);
+        setHighlightedEventIds(prev => {
+          const updated = new Set(prev);
+          newEvents.forEach(event => {
+            updated.delete(event.id);
+          });
+          return updated;
         });
-
-        setNewEventIds(newIdsMap);
-
-        // Smooth scroll after a short delay
-        if (autoScroll && scrollContainerRef.current) {
-          setTimeout(() => {
-            scrollContainerRef.current?.scrollTo({
-              top: 0,
-              behavior: 'smooth'
-            });
-          }, 300);
-        }
-
-        // Clear the new event tracking after all animations complete
-        // Timeline: last row (index 2) appears at 400ms, animates for 400ms, highlights for 1500ms
-        // Total: 400 + 400 + 1500 = 2300ms
-        animationTimeoutRef.current = setTimeout(() => {
-          setNewEventIds(new Map());
-          animationTimeoutRef.current = null;
-        }, 2400); // Clear after 2.4 seconds (600ms before next batch at 3s)
-      }, 50); // Small delay to ensure clean transition
+      }, 2000);
     }
     prevEventCountRef.current = events.length;
   }, [events, autoScroll]);
@@ -252,15 +242,13 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
             >
               {/* Render all rows without spacers */}
               {filteredEvents.slice(-100).reverse().map((event) => {
-                const animationDelay = newEventIds.get(event.id);
-                const isNewRow = animationDelay !== undefined;
+                const isHighlighted = highlightedEventIds.has(event.id);
 
                 return (
                   <DataRow
                     key={event.id}
                     event={event}
-                    isNew={isNewRow}
-                    animationDelay={animationDelay || 0}
+                    isHighlighted={isHighlighted}
                   />
                 );
               })}

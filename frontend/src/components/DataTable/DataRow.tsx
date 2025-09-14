@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
@@ -6,46 +5,10 @@ import type { FinancialEvent } from '../../types';
 
 interface DataRowProps {
   event: FinancialEvent;
-  isNew?: boolean;
-  animationDelay?: number;
+  isHighlighted?: boolean;
 }
 
-export default function DataRow({ event, isNew = false, animationDelay = 0 }: DataRowProps) {
-  const [isVisible, setIsVisible] = useState(!isNew);
-  const [isHighlighted, setIsHighlighted] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  useEffect(() => {
-    if (isNew) {
-      // Wait for the animation delay, then show the row
-      const showTimer = setTimeout(() => {
-        setIsVisible(true);
-        setIsAnimating(true);
-        setIsHighlighted(true);
-
-        // Stop the entry animation after it completes
-        setTimeout(() => {
-          setIsAnimating(false);
-        }, 400);
-      }, animationDelay);
-
-      // Keep the highlight for 1.5 seconds after the row appears
-      // Completes well before next batch
-      const highlightTimer = setTimeout(() => {
-        setIsHighlighted(false);
-      }, animationDelay + 1500);
-
-      return () => {
-        clearTimeout(showTimer);
-        clearTimeout(highlightTimer);
-      };
-    } else {
-      // Not new - ensure clean state
-      setIsVisible(true);
-      setIsAnimating(false);
-      setIsHighlighted(false);
-    }
-  }, [isNew, animationDelay, event.id]);
+export default function DataRow({ event, isHighlighted = false }: DataRowProps) {
 
   const statusColors: Record<string, string> = {
     success: 'text-posthog-success',
@@ -76,10 +39,6 @@ export default function DataRow({ event, isNew = false, animationDelay = 0 }: Da
     return account;
   };
 
-  // Don't render at all until visible to prevent any flashing
-  if (!isVisible) {
-    return null;
-  }
 
   return (
     <tr
@@ -87,9 +46,7 @@ export default function DataRow({ event, isNew = false, animationDelay = 0 }: Da
         'table-row border-b border-posthog-border',
         // Base transition for all state changes - smooth
         'transition-all duration-300 ease-out',
-        // Entry animation
-        isAnimating && 'animate-smoothSlideIn',
-        // Highlight state with long fade transition
+        // Highlight state
         isHighlighted ? [
           'bg-gradient-to-r from-posthog-accent/20 via-posthog-accent/10 to-transparent',
           'border-l-4 border-l-posthog-accent',
@@ -99,12 +56,6 @@ export default function DataRow({ event, isNew = false, animationDelay = 0 }: Da
           'hover:bg-posthog-bg-tertiary/50'
         ]
       )}
-      style={{
-        // Fast transition for snappy feel
-        transition: isHighlighted
-          ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-          : 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)' // Quick fade out
-      }}
     >
       <td className="px-3 py-2 text-xs text-posthog-text-secondary whitespace-nowrap">
         {format(new Date(event.timestamp), 'HH:mm:ss')}

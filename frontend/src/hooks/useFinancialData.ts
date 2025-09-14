@@ -60,7 +60,16 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     }
   }, []);
 
-  const addMultipleEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+
+  const addEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+    console.log(`addEvents called with ${newEvents.length} events, isInitialLoad: ${isInitialLoad}`);
+
+    // Add all events at once but ensure they maintain order for animation
+    // Sort by timestamp to ensure proper sequencing
+    const sortedEvents = [...newEvents].sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
     // Keep track of actually added events for anomaly detection and dataset info
     let actuallyAddedEvents: FinancialEvent[] = [];
 
@@ -68,9 +77,9 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     setEvents(prevEvents => {
       // Filter out any duplicates based on ID
       const existingIds = new Set(prevEvents.map(e => e.id));
-      const uniqueNewEvents = newEvents.filter(e => !existingIds.has(e.id));
+      const uniqueNewEvents = sortedEvents.filter(e => !existingIds.has(e.id));
 
-      console.log(`Table: Filtered to ${uniqueNewEvents.length} unique events out of ${newEvents.length}`);
+      console.log(`Table: Filtered to ${uniqueNewEvents.length} unique events out of ${sortedEvents.length}`);
 
       if (uniqueNewEvents.length === 0) {
         return prevEvents; // No new events to add
@@ -85,9 +94,9 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     setChartData(prevChartData => {
       // Filter out duplicates for chart data as well
       const existingChartIds = new Set(prevChartData.map(e => e.id));
-      const uniqueChartEvents = newEvents.filter(e => !existingChartIds.has(e.id));
+      const uniqueChartEvents = sortedEvents.filter(e => !existingChartIds.has(e.id));
 
-      console.log(`Chart: Filtered to ${uniqueChartEvents.length} unique events out of ${newEvents.length}`);
+      console.log(`Chart: Filtered to ${uniqueChartEvents.length} unique events out of ${sortedEvents.length}`);
 
       const updatedChartData = [...prevChartData, ...uniqueChartEvents];
       const windowedData = updatedChartData.slice(-CHART_WINDOW_SIZE);
@@ -118,18 +127,6 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     }
   }, [updateCharts]);
 
-  const addEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
-    console.log(`addEvents called with ${newEvents.length} events, isInitialLoad: ${isInitialLoad}`);
-
-    // Add all events at once but ensure they maintain order for animation
-    // Sort by timestamp to ensure proper sequencing
-    const sortedEvents = [...newEvents].sort((a, b) =>
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-
-    addMultipleEvents(sortedEvents, isInitialLoad);
-  }, [addMultipleEvents]);
-
   const startDataStream = useCallback(async () => {
     if (intervalRef.current) return;
 
@@ -154,7 +151,6 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
       intervalRef.current = setInterval(async () => {
         const newTransactions = await fetchNewTransactions();
         if (newTransactions.length > 0) {
-          console.log('Polling: Adding', newTransactions.length, 'events');
           addEvents(newTransactions);
         }
       }, updateFrequency);
@@ -174,7 +170,7 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
       setIsConnected(false);
       setIsLoading(false);
     }
-  }, [updateFrequency, addEvents]);
+  }, [updateFrequency]);
 
   const stopDataStream = useCallback(() => {
     if (intervalRef.current) {
