@@ -25,3 +25,8 @@ dist-ssr
 
 # Large data files
 public/Fraud.csv
+
+# Environment variables
+.env
+.env.local
+.env.production

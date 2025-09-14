@@ -41,6 +41,12 @@ async def health_check():
     )
 
 # User Routes
+
+@api_router.get("/agent-query")
+async def agent_query(limit: int = 100) -> List[dict[str, any]]:
+    result = await db_service.agent_query(limit)
+    return result
+
 @users_router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate):
     # Check if user already exists

@@ -8,6 +8,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SupabaseClient:
+    client: Optional[Client] = None
+
     def __init__(self):
         self.client: Optional[Client] = None
         self._initialize_client()
@@ -35,18 +37,22 @@ supabase_client = SupabaseClient()
 
 class DatabaseService:
     """Service class for database operations using Supabase"""
+    client: Optional[Client] = None
     
     def __init__(self):
         self.client = supabase_client.client
-    
-    async def test_connection(self) -> bool:
-        """Test database connection"""
+
+    async def agent_query(self, limit: int) -> List[Dict[str, Any]]:
+        """Query for the top limit events in the database by time descending"""
         if not self.client:
-            return False
+            return "Error: Supabase client not available"
         try:
-            # Simple query to test connection
-            result = self.client.table("users").select("id").limit(1).execute()
-            return True
+            result = self.client.table("events")\
+                .select("*")\
+                .order("time", desc=True)\
+                .limit(limit)\
+                .execute()
+            return result.data
         except Exception as e:
             logger.error(f"Database connection test failed: {e}")
             return False
