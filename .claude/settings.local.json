@@ -23,7 +23,10 @@
       "Bash(.venv/bin/python:*)",
       "Bash(pip install:*)",
       "Bash(uvicorn:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(brew install:*)",
+      "Bash(ngrok:*)",
+      "Bash(lt:*)"
     ],
     "deny": [],
     "ask": []

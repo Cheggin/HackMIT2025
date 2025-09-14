@@ -14,7 +14,7 @@ export interface GeneratedChartData {
   data: any[];
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://hackmit2025-api.loca.lt';
 
 export async function generateGraphFromPrompt(prompt: string): Promise<GeneratedGraph> {
   try {
