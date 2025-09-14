@@ -14,7 +14,7 @@ export interface GeneratedChartData {
   data: any[];
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://hackmit2025-api.loca.lt';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-finhog.midnightsky.net';
 
 export async function generateGraphFromPrompt(prompt: string): Promise<GeneratedGraph> {
   try {
