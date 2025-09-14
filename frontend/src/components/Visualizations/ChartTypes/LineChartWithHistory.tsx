@@ -68,11 +68,12 @@ export default function LineChartWithHistory({ data }: LineChartWithHistoryProps
         <XAxis
           dataKey="time"
           stroke="#8F8F8F"
-          style={{ fontSize: '9px' }}
-          interval={0}
+          style={{ fontSize: '10px' }}
+          interval={Math.ceil(mergedData.length / 8)}
           angle={-45}
           textAnchor="end"
           height={50}
+          tick={{ fontSize: 10 }}
         />
         <YAxis
           stroke="#8F8F8F"

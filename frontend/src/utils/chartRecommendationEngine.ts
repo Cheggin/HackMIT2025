@@ -142,7 +142,18 @@ function analyzeDataCharacteristics(events: FinancialEvent[]): DataCharacteristi
   return characteristics;
 }
 
-export function recommendChart(events: FinancialEvent[]): Chart {
+export function recommendChart(events: FinancialEvent[], useSQLMode: boolean = false): Chart {
+  // If SQL mode is enabled, return a placeholder
+  if (useSQLMode) {
+    return {
+      type: CHART_TYPES.LINE,
+      title: 'Loading SQL-based charts...',
+      justification: 'Charts are being loaded from database definitions',
+      data: [],
+      priority: 1
+    };
+  }
+
   const characteristics = analyzeDataCharacteristics(events);
   const rule = constitutionRules.rules[0];
 
@@ -156,7 +167,12 @@ export function recommendChart(events: FinancialEvent[]): Chart {
   };
 }
 
-export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4): Chart[] {
+export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4, useSQLMode: boolean = false): Chart[] {
+  // If SQL mode is enabled, return empty array - charts will come from SQL
+  if (useSQLMode) {
+    return [];
+  }
+
   const characteristics = analyzeDataCharacteristics(events);
   const recommendations: Chart[] = [];
 
@@ -253,8 +269,11 @@ function prepareTimeSeriesData(events: FinancialEvent[]): ChartData[] {
 
   // Create individual data points for each transaction
   // This gives us a smooth sliding window effect
+  const now = new Date();
   const dataPoints = recentEvents.map((event, index) => {
-    const timestamp = new Date(event.timestamp);
+    // Use current time and work backwards in 3-second intervals
+    const secondsAgo = (recentEvents.length - 1 - index) * 3;
+    const timestamp = new Date(now.getTime() - (secondsAgo * 1000));
     const timeKey = `${String(timestamp.getHours()).padStart(2, '0')}:${String(timestamp.getMinutes()).padStart(2, '0')}:${String(timestamp.getSeconds()).padStart(2, '0')}`;
 
     // Calculate running totals up to this point
