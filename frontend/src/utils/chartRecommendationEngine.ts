@@ -151,20 +151,21 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
   const characteristics = analyzeDataCharacteristics(events);
   const recommendations: Chart[] = [];
 
-  // Always include time series if we have time data
-  if (characteristics.hasTimeSeries) {
-    const rule = constitutionRules.rules.find(r => r.id === 'time_series_rule')!;
+  // Always include time series - even with minimal data
+  const timeSeriesRule = constitutionRules.rules.find(r => r.id === 'time_series_rule')!;
+  const timeSeriesData = prepareTimeSeriesData(events);
+  if (timeSeriesData.length > 0 || events.length > 0) {
     recommendations.push({
       type: CHART_TYPES.LINE,
       title: 'Transaction Volume Over Time',
-      justification: `${rule.justification}. Data shows ${characteristics.trendDirection} trend with ${events.length} data points and ${characteristics.anomalyCount} anomalies detected.`,
-      data: prepareTimeSeriesData(events),
+      justification: `${timeSeriesRule.justification}. Data shows ${characteristics.trendDirection} trend with ${events.length} data points and ${characteristics.anomalyCount} anomalies detected.`,
+      data: timeSeriesData,
       priority: 1
     });
   }
 
-  // Add categorical comparison if we have multiple categories
-  if (Object.keys(characteristics.hasCategoricalBreakdown).length > 1) {
+  // Always add categorical comparison
+  if (true) {
     const rule = constitutionRules.rules.find(r => r.id === 'categorical_comparison')!;
     recommendations.push({
       type: CHART_TYPES.BAR,
@@ -187,17 +188,15 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
     });
   }
 
-  // Add funnel for status progression
-  if (Object.keys(characteristics.hasFlowPatterns).length > 1) {
-    const rule = constitutionRules.rules.find(r => r.id === 'conversion_funnel')!;
-    recommendations.push({
-      type: CHART_TYPES.FUNNEL,
-      title: 'Transaction Status Funnel',
-      justification: `${rule.justification}. Tracking progression through ${Object.keys(characteristics.hasFlowPatterns).length} different states.`,
-      data: prepareFunnelData(events),
-      priority: 4
-    });
-  }
+  // Always add funnel for status progression
+  const funnelRule = constitutionRules.rules.find(r => r.id === 'conversion_funnel')!;
+  recommendations.push({
+    type: CHART_TYPES.FUNNEL,
+    title: 'Transaction Status Funnel',
+    justification: `${funnelRule.justification}. Tracking progression through ${Object.keys(characteristics.hasFlowPatterns).length} different states.`,
+    data: prepareFunnelData(events),
+    priority: 4
+  });
 
   // Add Sankey for flow analysis
   if (Object.keys(characteristics.hasCategoricalBreakdown).length > 2 &&
@@ -216,6 +215,8 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
 }
 
 function prepareTimeSeriesData(events: FinancialEvent[]): ChartData[] {
+  if (events.length === 0) return [];
+
   // Take only the last 50 transactions for a sliding window view
   const recentEvents = events.slice(-50);
 
@@ -227,47 +228,61 @@ function prepareTimeSeriesData(events: FinancialEvent[]): ChartData[] {
 
     // Calculate running totals up to this point
     const eventsUpToNow = recentEvents.slice(0, index + 1);
-    const last10Events = eventsUpToNow.slice(-10); // Consider last 10 for running average
+    const last50Events = eventsUpToNow.slice(-50); // Consider last 50 for running average
 
     return {
       time: timeKey,
-      volume: last10Events.length,
-      amount: last10Events.reduce((sum, e) => sum + (e.amount || 0), 0),
-      fraudCount: last10Events.filter(e => e.isFraud).length,
+      volume: last50Events.length,
+      amount: last50Events.reduce((sum, e) => sum + (e.amount || 0), 0),
+      fraudCount: last50Events.filter(e => e.isFraud).length,
       timestamp: timestamp.getTime()
     };
   });
 
-  // Return last 20 data points for clean visualization
-  return dataPoints.slice(-20);
+  // Always return at least some data if we have any events
+  const pointsToReturn = Math.min(dataPoints.length, 20);
+  return dataPoints.slice(-pointsToReturn);
 }
 
 function prepareCategoricalData(events: FinancialEvent[]): ChartData[] {
+  // Define all 5 transaction types that should always be shown
+  const ALL_TRANSACTION_TYPES = ['PAYMENT', 'TRANSFER', 'CASH_OUT', 'CASH_IN', 'DEBIT'];
+
+  // Initialize categories with all types set to zero
   const categories: Record<string, { count: number; amount: number; fraudCount: number }> = {};
 
+  ALL_TRANSACTION_TYPES.forEach(type => {
+    categories[type] = {
+      count: 0,
+      amount: 0,
+      fraudCount: 0
+    };
+  });
+
+  // Count actual data
   events.forEach(event => {
     const type = event.transactionType || event.eventType;
-    if (!categories[type]) {
-      categories[type] = {
-        count: 0,
-        amount: 0,
-        fraudCount: 0
-      };
-    }
-    categories[type].count++;
-    categories[type].amount += event.amount;
-    if (event.isFraud) {
-      categories[type].fraudCount++;
+    if (categories[type]) {
+      categories[type].count++;
+      categories[type].amount += event.amount;
+      if (event.isFraud) {
+        categories[type].fraudCount++;
+      }
     }
   });
 
-  return Object.entries(categories).map(([name, data]) => ({
-    name,
-    count: data.count,
-    amount: data.amount,
-    avgAmount: data.amount / data.count,
-    fraudRate: (data.fraudCount / data.count) * 100
-  }));
+  // Return all types, including those with zero values
+  return ALL_TRANSACTION_TYPES.map(name => {
+    const data = categories[name];
+    return {
+      name,
+      count: data.count,
+      amount: data.amount,
+      avgAmount: data.count > 0 ? data.amount / data.count : 0,
+      fraudCount: data.fraudCount,
+      fraudRate: data.count > 0 ? (data.fraudCount / data.count) * 100 : 0
+    };
+  });
 }
 
 function prepareHeatmapData(events: FinancialEvent[]): ChartData[] {
@@ -295,6 +310,14 @@ function prepareHeatmapData(events: FinancialEvent[]): ChartData[] {
 
 function prepareFunnelData(events: FinancialEvent[]): ChartData[] {
   const total = events.length;
+  if (total === 0) {
+    return [
+      { name: 'Total', value: 0, percentage: 100 },
+      { name: 'Processing', value: 0, percentage: 0 },
+      { name: 'Completed', value: 0, percentage: 0 }
+    ];
+  }
+
   const pending = events.filter(e => e.status === 'pending').length;
   const success = events.filter(e => e.status === 'success').length;
 

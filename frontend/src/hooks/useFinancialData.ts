@@ -25,7 +25,7 @@ interface UseFinancialDataReturn {
   updateFrequencyRate: (newFrequency: number) => void;
 }
 
-export function useFinancialData(updateFrequency: number = 2000): UseFinancialDataReturn {
+export function useFinancialData(updateFrequency: number = 4000): UseFinancialDataReturn { // Default to 4s for fast, snappy updates
   const [events, setEvents] = useState<FinancialEvent[]>([]);
   const [chartData, setChartData] = useState<FinancialEvent[]>([]); // Separate state for chart processing
   const [charts, setCharts] = useState<Chart[]>([]);
@@ -43,51 +43,92 @@ export function useFinancialData(updateFrequency: number = 2000): UseFinancialDa
   const updateCounterRef = useRef(0);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  const updateCharts = useCallback((data: FinancialEvent[]) => {
-    // Update charts every 3 new events for smoother sliding window
-    updateCounterRef.current++;
-    if (updateCounterRef.current >= 3 || data.length <= 10) {
+  const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false) => {
+    // Always update charts on initial load or when we have enough data
+    if (forceUpdate || data.length > 0) {
       const recommendations = recommendCharts(data, 4);
       setCharts(recommendations);
       updateCounterRef.current = 0;
+    } else {
+      // Update charts every 3 new events for smoother sliding window
+      updateCounterRef.current++;
+      if (updateCounterRef.current >= 3) {
+        const recommendations = recommendCharts(data, 4);
+        setCharts(recommendations);
+        updateCounterRef.current = 0;
+      }
     }
   }, []);
 
-  const addEvents = useCallback((newEvents: FinancialEvent[]) => {
+  const addMultipleEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+    // Keep track of actually added events for anomaly detection and dataset info
+    let actuallyAddedEvents: FinancialEvent[] = [];
+
     // Update table events (keep last TABLE_HISTORY_SIZE)
     setEvents(prevEvents => {
-      const updatedEvents = [...prevEvents, ...newEvents];
+      // Filter out any duplicates based on ID
+      const existingIds = new Set(prevEvents.map(e => e.id));
+      const uniqueNewEvents = newEvents.filter(e => !existingIds.has(e.id));
+
+      console.log(`Table: Filtered to ${uniqueNewEvents.length} unique events out of ${newEvents.length}`);
+
+      if (uniqueNewEvents.length === 0) {
+        return prevEvents; // No new events to add
+      }
+
+      actuallyAddedEvents = uniqueNewEvents;
+      const updatedEvents = [...prevEvents, ...uniqueNewEvents];
       return updatedEvents.slice(-TABLE_HISTORY_SIZE);
     });
 
     // Update chart data with sliding window (keep last CHART_WINDOW_SIZE)
     setChartData(prevChartData => {
-      const updatedChartData = [...prevChartData, ...newEvents];
+      // Filter out duplicates for chart data as well
+      const existingChartIds = new Set(prevChartData.map(e => e.id));
+      const uniqueChartEvents = newEvents.filter(e => !existingChartIds.has(e.id));
+
+      console.log(`Chart: Filtered to ${uniqueChartEvents.length} unique events out of ${newEvents.length}`);
+
+      const updatedChartData = [...prevChartData, ...uniqueChartEvents];
       const windowedData = updatedChartData.slice(-CHART_WINDOW_SIZE);
 
       // Update charts with the windowed data
-      updateCharts(windowedData);
+      updateCharts(windowedData, isInitialLoad);
 
       return windowedData;
     });
 
-    // Detect anomalies for new events
-    newEvents.forEach(event => {
-      const eventAnomalies = detectSupabaseAnomaly(event);
-      if (eventAnomalies.length > 0) {
-        setAnomalies(prev => [...prev, ...eventAnomalies].slice(-10));
-      }
-    });
+    // Detect anomalies for new unique events only
+    if (actuallyAddedEvents.length > 0) {
+      actuallyAddedEvents.forEach(event => {
+        const eventAnomalies = detectSupabaseAnomaly(event);
+        if (eventAnomalies.length > 0) {
+          setAnomalies(prev => [...prev, ...eventAnomalies].slice(-10));
+        }
+      });
 
-    // Update dataset info
-    setDatasetInfo(prev => ({
-      ...prev,
-      totalRecords: prev.totalRecords + newEvents.length,
-      currentPosition: prev.currentPosition + newEvents.length,
-      fraudCount: prev.fraudCount + newEvents.filter(e => e.isFraud).length,
-      flaggedCount: prev.flaggedCount + newEvents.filter(e => e.isFlaggedFraud).length
-    }));
+      // Update dataset info only for actually added events
+      setDatasetInfo(prev => ({
+        ...prev,
+        totalRecords: prev.totalRecords + actuallyAddedEvents.length,
+        currentPosition: prev.currentPosition + actuallyAddedEvents.length,
+        fraudCount: prev.fraudCount + actuallyAddedEvents.filter(e => e.isFraud).length,
+        flaggedCount: prev.flaggedCount + actuallyAddedEvents.filter(e => e.isFlaggedFraud).length
+      }));
+    }
   }, [updateCharts]);
+
+  const addEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+    console.log(`addEvents called with ${newEvents.length} events, isInitialLoad: ${isInitialLoad}`);
+
+    // Add all events at once but ensure they maintain order for animation
+    // Sort by timestamp to ensure proper sequencing
+    const sortedEvents = [...newEvents].sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    addMultipleEvents(sortedEvents, isInitialLoad);
+  }, [addMultipleEvents]);
 
   const startDataStream = useCallback(async () => {
     if (intervalRef.current) return;
@@ -106,21 +147,26 @@ export function useFinancialData(updateFrequency: number = 2000): UseFinancialDa
       // Load initial 50 transactions
       const initialTransactions = await fetchInitialTransactions(50);
       if (initialTransactions.length > 0) {
-        addEvents(initialTransactions);
+        addEvents(initialTransactions, true); // Pass true for initial load
       }
 
       // Set up polling for new transactions
       intervalRef.current = setInterval(async () => {
         const newTransactions = await fetchNewTransactions();
         if (newTransactions.length > 0) {
+          console.log('Polling: Adding', newTransactions.length, 'events');
           addEvents(newTransactions);
         }
       }, updateFrequency);
 
-      // Optional: Subscribe to real-time updates
+      // Comment out real-time subscription to avoid duplicates
+      // The polling mechanism is sufficient for our needs
+      /*
       unsubscribeRef.current = subscribeToTransactions((event) => {
+        console.log('Subscription: Adding 1 event');
         addEvents([event]);
       });
+      */
 
       setIsLoading(false);
     } catch (error) {
@@ -136,10 +182,13 @@ export function useFinancialData(updateFrequency: number = 2000): UseFinancialDa
       intervalRef.current = null;
     }
 
+    // Subscription is disabled, so no need to unsubscribe
+    /*
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
     }
+    */
 
     setIsConnected(false);
   }, []);

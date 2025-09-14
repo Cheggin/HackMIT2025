@@ -13,7 +13,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [constitutionMode, setConstitutionMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [updateFrequency, setUpdateFrequency] = useState(2000);
+  const [updateFrequency, setUpdateFrequency] = useState(4000); // Update every 4 seconds for snappy updates matching chart speed
   const [currentAnomaly, setCurrentAnomaly] = useState<Anomaly | null>(null);
   const [fullscreenChart, setFullscreenChart] = useState<number | null>(null);
 
@@ -98,7 +98,7 @@ function App() {
                   </div>
                 ) : charts.length > 0 ? (
                   charts.map((chart, index) => (
-                    <div key={index} className="min-h-0">
+                    <div key={index} className="min-h-[300px]">
                       <ChartContainer
                         chart={chart}
                         isFullscreen={fullscreenChart === index}
@@ -126,13 +126,7 @@ function App() {
         onUpdateFrequency={handleUpdateFrequency}
       />
 
-      {/* Toast Notifications */}
-      {currentAnomaly && (
-        <Toast
-          anomaly={currentAnomaly}
-          onClose={() => setCurrentAnomaly(null)}
-        />
-      )}
+      {/* Toast Notifications - Disabled */}
     </div>
   );
 }

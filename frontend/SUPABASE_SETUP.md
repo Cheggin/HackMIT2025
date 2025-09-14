@@ -6,18 +6,17 @@
 
 ## Configuration
 
-1. Copy the `.env.example` file to `.env`:
-```bash
-cp .env.example .env
-```
-
-2. Fill in your Supabase credentials in `.env`:
+1. Create a `.env` file with your Supabase credentials:
 ```
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Optional: Use service role key for bypassing RLS (not required for public schema)
+# VITE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 You can find these values in your Supabase project settings under Settings > API.
+
+**Note**: The anon key is sufficient for accessing the public schema. The service role key is optional and only needed if you want to bypass Row Level Security policies.
 
 ## Database Schema
 

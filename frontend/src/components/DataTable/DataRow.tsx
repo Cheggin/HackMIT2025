@@ -1,4 +1,4 @@
-import 'react';
+import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
@@ -7,9 +7,41 @@ import type { FinancialEvent } from '../../types';
 interface DataRowProps {
   event: FinancialEvent;
   isNew?: boolean;
+  animationDelay?: number;
 }
 
-export default function DataRow({ event, isNew = false }: DataRowProps) {
+export default function DataRow({ event, isNew = false, animationDelay = 0 }: DataRowProps) {
+  const [isVisible, setIsVisible] = useState(!isNew);
+  const [isHighlighted, setIsHighlighted] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    if (isNew) {
+      // Wait for the animation delay, then show the row
+      const showTimer = setTimeout(() => {
+        setIsVisible(true);
+        setIsAnimating(true);
+        setIsHighlighted(true);
+
+        // Stop the entry animation after it completes
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 600);
+      }, animationDelay);
+
+      // Keep the highlight for 2 seconds after the row appears
+      // Quick highlight that matches chart update speed
+      const highlightTimer = setTimeout(() => {
+        setIsHighlighted(false);
+      }, animationDelay + 2000);
+
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(highlightTimer);
+      };
+    }
+  }, [isNew, animationDelay, event.id]);
+
   const statusColors: Record<string, string> = {
     success: 'text-posthog-success',
     pending: 'text-posthog-warning',
@@ -39,12 +71,35 @@ export default function DataRow({ event, isNew = false }: DataRowProps) {
     return account;
   };
 
+  // Don't render at all until visible to prevent any flashing
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <tr
       className={clsx(
-        'border-b border-posthog-border hover:bg-posthog-bg-tertiary/50 transition-colors',
-        isNew && 'animate-pulse bg-posthog-accent/5'
+        'table-row border-b border-posthog-border',
+        // Base transition for all state changes - faster
+        'transition-all duration-500 ease-out',
+        // Entry animation
+        isAnimating && 'animate-smoothSlideIn',
+        // Highlight state with long fade transition
+        isHighlighted ? [
+          'bg-gradient-to-r from-posthog-accent/20 via-posthog-accent/10 to-transparent',
+          'border-l-4 border-l-posthog-accent',
+          'shadow-[inset_0_0_30px_rgba(245,78,0,0.1)]'
+        ] : [
+          'border-l-4 border-l-transparent',
+          'hover:bg-posthog-bg-tertiary/50'
+        ]
       )}
+      style={{
+        // Fast transition for snappy feel
+        transition: isHighlighted
+          ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          : 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)' // Quick fade out
+      }}
     >
       <td className="px-3 py-2 text-xs text-posthog-text-secondary whitespace-nowrap">
         {format(new Date(event.timestamp), 'HH:mm:ss')}

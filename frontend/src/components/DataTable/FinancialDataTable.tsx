@@ -14,13 +14,53 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
   const [autoScroll, setAutoScroll] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [newEventIds, setNewEventIds] = useState<Map<string, number>>(new Map());
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevEventCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
-    if (autoScroll && tableBodyRef.current) {
-      tableBodyRef.current.scrollTop = tableBodyRef.current.scrollHeight;
+    // Skip tracking on initial load
+    if (isInitialLoadRef.current) {
+      prevEventCountRef.current = events.length;
+      isInitialLoadRef.current = false;
+      return;
     }
+
+    // Track new events only after initial load
+    if (events.length > prevEventCountRef.current) {
+      const newEventsCount = events.length - prevEventCountRef.current;
+      const newEvents = events.slice(-newEventsCount);
+      const newIdsMap = new Map<string, number>();
+
+      // Create staggered delays for each new row
+      newEvents.forEach((event, index) => {
+        // Stagger by 100ms per row for snappier appearance
+        newIdsMap.set(event.id, index * 100);
+      });
+
+      setNewEventIds(newIdsMap);
+
+      // Smooth scroll after a short delay
+      if (autoScroll && scrollContainerRef.current) {
+        setTimeout(() => {
+          scrollContainerRef.current?.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }, 300);
+      }
+
+      // Clear the new event tracking after all animations complete
+      // Timeline: last row appears at 500ms, highlights for 2000ms, fades for 500ms
+      // Total: 500 + 2000 + 500 = 3000ms
+      setTimeout(() => {
+        setNewEventIds(new Map());
+      }, 3500); // Clear after 3.5 seconds
+    }
+    prevEventCountRef.current = events.length;
   }, [events, autoScroll]);
 
   const filteredEvents = events.filter((event: FinancialEvent) => {
@@ -156,10 +196,14 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
       </div>
 
       <div className="flex-1 overflow-hidden" ref={tableContainerRef}>
-        <div className="overflow-x-auto h-full">
+        <div
+          ref={scrollContainerRef}
+          className="overflow-x-auto overflow-y-auto h-full scrollbar-thin"
+          style={{ maxHeight: 'calc(100vh - 300px)' }}
+        >
           <table className="w-full">
             <thead className="bg-posthog-bg-primary border-b border-posthog-border sticky top-0 z-10">
-              <tr>
+              <tr className="table-row">
                 <th className="px-3 py-3 text-left text-xs font-medium text-posthog-text-secondary uppercase tracking-wider whitespace-nowrap">
                   Time
                 </th>
@@ -191,16 +235,22 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
             </thead>
             <tbody
               ref={tableBodyRef}
-              className="bg-posthog-bg-secondary overflow-y-auto scrollbar-thin"
-              style={{ maxHeight: 'calc(100% - 48px)' }}
+              className="bg-posthog-bg-secondary"
             >
-              {filteredEvents.slice(-100).map((event, index) => (
-                <DataRow
-                  key={event.id}
-                  event={event}
-                  isNew={index >= filteredEvents.length - 5}
-                />
-              ))}
+              {/* Render all rows without spacers */}
+              {filteredEvents.slice(-100).reverse().map((event) => {
+                const animationDelay = newEventIds.get(event.id);
+                const isNewRow = animationDelay !== undefined;
+
+                return (
+                  <DataRow
+                    key={event.id}
+                    event={event}
+                    isNew={isNewRow}
+                    animationDelay={animationDelay || 0}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>

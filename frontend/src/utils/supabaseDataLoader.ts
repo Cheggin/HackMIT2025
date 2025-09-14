@@ -3,9 +3,9 @@ import type { FinancialEvent, Anomaly } from '../types';
 
 // Initialize Supabase client - you'll need to add these to your .env file
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Database table interface matching your Supabase schema
 interface TransactionRow {
@@ -26,15 +26,17 @@ interface TransactionRow {
   time: number;
 }
 
-// Track the last fetched timestamp for continuous polling
+// Track the last fetched timestamp and ID for continuous polling
 let lastFetchedTime: number | null = null;
+let lastFetchedId: number | null = null;
 let isInitialized = false;
+let totalRowCount = 0;
 
 export async function initializeSupabaseConnection(): Promise<boolean> {
   try {
-    // Test the connection - using public schema (private schema not accessible via REST API)
+    // Test the connection - using public schema
     const { data, error } = await supabase
-      .from('events')
+      .from('events')  // Using public schema
       .select('id')
       .limit(1);
 
@@ -54,11 +56,20 @@ export async function initializeSupabaseConnection(): Promise<boolean> {
 
 export async function fetchInitialTransactions(limit: number = 50): Promise<FinancialEvent[]> {
   try {
-    // Fetch the most recent transactions from public schema
-    const { data, error } = await supabase
+    // Get total count of rows
+    const { count } = await supabase
       .from('events')
+      .select('*', { count: 'exact', head: true });
+
+    if (count) {
+      totalRowCount = count;
+    }
+
+    // Fetch the first batch of transactions
+    const { data, error } = await supabase
+      .from('events')  // Using public schema
       .select('*')
-      .order('time', { ascending: false })
+      .order('id', { ascending: true })
       .limit(limit);
 
     if (error) {
@@ -67,13 +78,21 @@ export async function fetchInitialTransactions(limit: number = 50): Promise<Fina
     }
 
     if (data && data.length > 0) {
-      // Update the last fetched timestamp
+      // Update the last fetched ID and timestamp
+      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
       lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
 
-      // Convert and return in chronological order
+      // Convert and return with timestamps spaced 1 second apart for initial batch
+      const currentTime = Date.now();
       return data
-        .reverse()
-        .map(convertSupabaseRowToEvent)
+        .map((row, index) => {
+          const event = convertSupabaseRowToEvent(row);
+          if (event) {
+            // Space initial events 1 second apart
+            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
+          }
+          return event;
+        })
         .filter(Boolean) as FinancialEvent[];
     }
 
@@ -85,19 +104,23 @@ export async function fetchInitialTransactions(limit: number = 50): Promise<Fina
 }
 
 export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
-  if (!lastFetchedTime) {
+  if (lastFetchedId === null) {
     // If we haven't fetched anything yet, get initial data
     return fetchInitialTransactions();
   }
 
   try {
-    // Fetch transactions newer than the last fetched timestamp from public schema
-    const { data, error } = await supabase
+    // Fetch next batch of transactions after the last fetched ID
+    let query = supabase
       .from('events')
       .select('*')
-      .gt('time', lastFetchedTime)
-      .order('time', { ascending: true })
-      .limit(10); // Limit to prevent overwhelming the UI
+      .order('id', { ascending: true })
+      .limit(6); // Get 6 rows per update
+
+    // Get next rows after last fetched ID
+    query = query.gt('id', lastFetchedId);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching new transactions:', error);
@@ -105,16 +128,51 @@ export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
     }
 
     if (data && data.length > 0) {
-      // Update the last fetched timestamp
-      lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
+      // Update the last fetched ID
+      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
+      console.log(`Fetched ${data.length} new transactions, IDs: ${data.map((r: TransactionRow) => r.id).join(', ')}`);
 
-      // Convert and return
+      // Convert and return with timestamps spaced 1 second apart
+      const currentTime = Date.now();
       return data
-        .map(convertSupabaseRowToEvent)
+        .map((row, index) => {
+          const event = convertSupabaseRowToEvent(row);
+          if (event) {
+            // Space events 1 second apart for clear separation
+            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
+          }
+          return event;
+        })
+        .filter(Boolean) as FinancialEvent[];
+    } else {
+      // If no more data, fetch from beginning but skip already fetched IDs
+      console.log('Reached end of data, cycling back to beginning');
+
+      const { data: firstBatch, error: firstError } = await supabase
+        .from('events')
+        .select('*')
+        .order('id', { ascending: true })
+        .limit(6);
+
+      if (firstError || !firstBatch || firstBatch.length === 0) {
+        return [];
+      }
+
+      // Update the last fetched ID to continue from here
+      lastFetchedId = Math.max(...firstBatch.map((row: TransactionRow) => row.id));
+
+      const currentTime = Date.now();
+      return firstBatch
+        .map((row, index) => {
+          const event = convertSupabaseRowToEvent(row);
+          if (event) {
+            // Space events 1 second apart
+            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
+          }
+          return event;
+        })
         .filter(Boolean) as FinancialEvent[];
     }
-
-    return [];
   } catch (error) {
     console.error('Failed to fetch new transactions:', error);
     return [];
@@ -154,8 +212,11 @@ function convertSupabaseRowToEvent(row: TransactionRow): FinancialEvent | null {
   // Use the actual timestamp from the database
   const timestamp = new Date(row.time);
 
+  // Create unique ID by combining row ID with timestamp to avoid duplicates
+  const uniqueId = `TXN-${row.id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
   return {
-    id: `TXN-${row.id}`,
+    id: uniqueId,
     timestamp: timestamp.toISOString(),
     eventType,
     amount: Math.abs(amount),
