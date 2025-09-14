@@ -6,7 +6,8 @@ export const CHART_TYPES = {
   PIE: 'pie',
   SANKEY: 'sankey',
   FUNNEL: 'funnel',
-  NETWORK3D: 'network3d'
+  NETWORK3D: 'network3d',
+  COHORT_HEATMAP: 'cohort_heatmap'
 } as const;
 
 export type ChartType = typeof CHART_TYPES[keyof typeof CHART_TYPES];
@@ -68,6 +69,13 @@ export const constitutionRules: ConstitutionRules = {
       action: 'Use FUNNEL chart',
       priority: 5,
       justification: 'Funnel charts effectively display drop-off rates in sequential processes'
+    },
+    {
+      id: 'cohort_analysis',
+      condition: 'When analyzing user behavior over time by groups',
+      action: 'Use COHORT HEATMAP',
+      priority: 6,
+      justification: 'Cohort heatmaps reveal retention patterns and behavior trends across user segments'
     }
   ],
   anomalyThresholds: {
@@ -188,7 +196,19 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
     });
   }
 
-  // Add Sankey for flow analysis - high priority
+  // Add Cohort Heatmap for retention analysis - high priority
+  if (events.length > 15) {
+    const cohortRule = constitutionRules.rules.find(r => r.id === 'cohort_analysis')!;
+    recommendations.push({
+      type: CHART_TYPES.COHORT_HEATMAP,
+      title: 'Cohort Retention Analysis',
+      justification: `${cohortRule.justification}. Analyzing ${events.length} transactions across time-based cohorts to identify retention and behavior patterns.`,
+      data: prepareCohortData(events),
+      priority: 3
+    });
+  }
+
+  // Add Sankey for flow analysis
   if (events.length > 10) {
     const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
     recommendations.push({
@@ -196,7 +216,7 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
       title: 'Transaction Flow Analysis',
       justification: `${rule.justification}. Visualizing money flow between ${Object.keys(characteristics.hasCategoricalBreakdown).length} transaction types.`,
       data: prepareSankeyData(events),
-      priority: 3
+      priority: 5
     });
   }
 
@@ -420,4 +440,36 @@ function prepareSankeyData(events: FinancialEvent[]): ChartData[] {
   });
 
   return Object.values(flows);
+}
+
+function prepareCohortData(events: FinancialEvent[]): ChartData[] {
+  // Prepare data for cohort heatmap visualization
+  // We'll create synthetic cohort data from the event stream
+  const cohortData: ChartData[] = [];
+
+  if (events.length === 0) return cohortData;
+
+  // Create cohorts based on event timestamps
+  // Group events into minute-based cohorts for real-time analysis
+  const minuteSpan = 60000; // 1 minute in milliseconds
+
+  events.forEach(event => {
+    const eventTime = new Date(event.timestamp);
+    const minuteBucket = Math.floor(eventTime.getTime() / minuteSpan) * minuteSpan;
+
+    // Create a data point for each event with cohort information
+    cohortData.push({
+      time: eventTime.toLocaleTimeString(),
+      timestamp: minuteBucket,
+      count: 1,
+      volume: 1,
+      value: event.amount,
+      amount: event.amount,
+      fraudCount: event.isFraud ? 1 : 0,
+      name: `Transaction ${event.transactionType}`,
+      fraudRate: event.isFraud ? 100 : 0
+    });
+  });
+
+  return cohortData;
 }

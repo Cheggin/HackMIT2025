@@ -7,6 +7,7 @@ import PieChartComponent from './ChartTypes/PieChart';
 import NetworkGraph3D from './ChartTypes/NetworkGraph3D';
 import SankeyComponent from './ChartTypes/SankeyChart';
 import FunnelComponent from './ChartTypes/FunnelChart';
+import CohortHeatmap from './ChartTypes/CohortHeatmap';
 import { CHART_TYPES } from '../../utils/chartRecommendationEngine';
 import type { Chart, ChartData } from '../../types';
 
@@ -24,6 +25,7 @@ const chartComponents: Record<string, React.ComponentType<{ data: ChartData[] }>
   [CHART_TYPES.NETWORK3D]: NetworkGraph3D,
   [CHART_TYPES.SANKEY]: SankeyComponent,
   [CHART_TYPES.FUNNEL]: FunnelComponent,
+  [CHART_TYPES.COHORT_HEATMAP]: CohortHeatmap,
 };
 
 export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen, constitutionMode }: ChartContainerProps) {
