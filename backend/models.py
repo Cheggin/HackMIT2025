@@ -12,14 +12,13 @@ class GraphBase(BaseModel):
     type: str
     title: str
     sql_query: str
+    extra: Optional[dict] = None
 
 class GraphCreate(GraphBase):
     pass
 
 class Graph(GraphBase):
-    id: int
-    created_at: datetime
-    update_at: datetime
+    id: str
 
 class AgentQueryResponse(BaseModel):
     events: List[dict[str, Any]]
