@@ -79,7 +79,7 @@ const state = new DataLoaderState();
 // Core data fetching functions
 export async function initializeSupabaseConnection(): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('events')
       .select('id')
       .limit(1);

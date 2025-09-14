@@ -4,8 +4,7 @@ import {
   initializeSupabaseConnection,
   fetchInitialTransactions,
   fetchNewTransactions,
-  detectSupabaseAnomaly,
-  subscribeToTransactions
+  detectSupabaseAnomaly
 } from '../utils/supabaseDataLoader';
 import type { FinancialEvent, Chart, Anomaly, DatasetInfo } from '../types';
 
@@ -41,8 +40,6 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
   const [isLoading, setIsLoading] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const updateCounterRef = useRef(0);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  const eventBatchRef = useRef<FinancialEvent[]>([]);
   const lastFetchTimeRef = useRef(0);
   const isFetchingRef = useRef(false);
 
@@ -233,7 +230,7 @@ export function useFinancialData(updateFrequency: number = 3000): UseFinancialDa
     });
   }, []);
 
-  const updateFrequencyRate = useCallback((newFrequency: number) => {
+  const updateFrequencyRate = useCallback(() => {
     stopDataStream();
     setTimeout(() => {
       startDataStream();

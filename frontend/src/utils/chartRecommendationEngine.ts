@@ -179,7 +179,6 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
 
   // Add pie chart for transaction type distribution
   if (events.length > 5) {
-    const rule = constitutionRules.rules.find(r => r.id === 'density_pattern')!;
     recommendations.push({
       type: CHART_TYPES.PIE,
       title: 'Transaction Type Distribution',
@@ -308,14 +307,10 @@ function prepareNetworkData(events: FinancialEvent[]): ChartData[] {
       if (!accountMap.has(event.sourceAccount)) {
         accountMap.set(event.sourceAccount, {
           name: event.sourceAccount,
-          sourceAccount: event.sourceAccount,
-          destAccount: '',
           count: 0,
           value: 0,
           fraudCount: 0,
-          fraudRate: 0,
-          sourceBalanceBefore: event.sourceBalanceBefore,
-          sourceBalanceAfter: event.sourceBalanceAfter
+          fraudRate: 0
         });
       }
       const sourceData = accountMap.get(event.sourceAccount)!;
@@ -329,14 +324,10 @@ function prepareNetworkData(events: FinancialEvent[]): ChartData[] {
       if (!accountMap.has(event.destAccount)) {
         accountMap.set(event.destAccount, {
           name: event.destAccount,
-          sourceAccount: '',
-          destAccount: event.destAccount,
           count: 0,
           value: 0,
           fraudCount: 0,
-          fraudRate: 0,
-          destBalanceBefore: event.destBalanceBefore,
-          destBalanceAfter: event.destBalanceAfter
+          fraudRate: 0
         });
       }
       const destData = accountMap.get(event.destAccount)!;
@@ -356,16 +347,10 @@ function prepareNetworkData(events: FinancialEvent[]): ChartData[] {
   // Also include transaction-level data for edges
   const transactionData = events.slice(-50).map(event => ({
     name: `${event.transactionType}: $${event.amount.toFixed(0)}`,
-    sourceAccount: event.sourceAccount,
-    destAccount: event.destAccount,
     count: 1,
     value: event.amount,
     fraudCount: event.isFraud ? 1 : 0,
-    fraudRate: event.isFraud ? 100 : 0,
-    sourceBalanceBefore: event.sourceBalanceBefore,
-    sourceBalanceAfter: event.sourceBalanceAfter,
-    destBalanceBefore: event.destBalanceBefore,
-    destBalanceAfter: event.destBalanceAfter
+    fraudRate: event.isFraud ? 100 : 0
   }));
 
   return [...Array.from(accountMap.values()), ...transactionData];

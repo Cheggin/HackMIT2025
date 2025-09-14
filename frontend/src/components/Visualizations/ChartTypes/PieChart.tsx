@@ -51,7 +51,6 @@ interface CustomLabelProps {
   innerRadius: number;
   outerRadius: number;
   percent: number;
-  value: number;
 }
 
 const renderCustomizedLabel = ({
@@ -60,8 +59,7 @@ const renderCustomizedLabel = ({
   midAngle,
   innerRadius,
   outerRadius,
-  percent,
-  value
+  percent
 }: CustomLabelProps) => {
   // Only show label if percentage is significant (> 5%)
   if (percent < 0.05) return null;
@@ -114,9 +112,6 @@ export default function PieChartComponent({ data }: PieChartComponentProps) {
       fraudRate: item.fraudRate || 0
     }));
 
-  // Calculate total for percentage display
-  const total = pieData.reduce((sum, item) => sum + item.value, 0);
-
   if (pieData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -133,7 +128,7 @@ export default function PieChartComponent({ data }: PieChartComponentProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={renderCustomizedLabel} 
+          label={renderCustomizedLabel as any} 
           outerRadius={80}
           fill="#8884d8"
           dataKey="value"
@@ -142,7 +137,7 @@ export default function PieChartComponent({ data }: PieChartComponentProps) {
           onMouseEnter={onPieEnter}
           onMouseLeave={onPieLeave}
         >
-          {pieData.map((entry, index) => (
+          {pieData.map((_, index) => (
             <Cell
               key={`cell-${index}`}
               fill={COLORS[index % COLORS.length]}
