@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { X, FileText, BarChart3, TrendingUp, AlertTriangle } from 'lucide-react';
 
 interface ConstitutionModalProps {
@@ -201,7 +201,7 @@ export default function ConstitutionModal({ isOpen, onClose }: ConstitutionModal
               {line.match(/^\d+/)?.[0]}
             </span>
             <p className="text-posthog-text-secondary flex-1">
-              {line.replace(/^\d+\.\s\*\*(.*?)\*\*:/, (match, p1) => '')}
+              {line.replace(/^\d+\.\s\*\*(.*?)\*\*:/, () => '')}
               {line.includes('**') ? (
                 <>
                   <strong className="text-posthog-text-primary">
@@ -223,7 +223,7 @@ export default function ConstitutionModal({ isOpen, onClose }: ConstitutionModal
           <div key={index} className="flex gap-2 mb-1 ml-4">
             <TrendingUp className="w-3 h-3 text-posthog-accent-secondary mt-1.5 flex-shrink-0" />
             <p className="text-posthog-text-secondary text-sm">
-              {line.replace('- ', '').replace(/\*\*(.*?)\*\*/g, (match, p1) => p1)}
+              {line.replace('- ', '').replace(/\*\*(.*?)\*\*/g, (_, p1) => p1)}
             </p>
           </div>
         );
@@ -298,7 +298,7 @@ export default function ConstitutionModal({ isOpen, onClose }: ConstitutionModal
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }
