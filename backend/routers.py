@@ -8,6 +8,9 @@ from models import (
 from database import db_service
 from datetime import datetime
 import logging
+import base64
+from generate_financial_reports import run_graph_management_agent
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -110,3 +113,30 @@ async def delete_graph(graph_id: str):
         )
 
     return BaseResponse(success=True, message="Graph deleted successfully")
+
+
+@api_router.post("/generate-report")
+async def generate_report(files: List[UploadFile] = File(...)):
+    # Encode screenshots
+    encoded_screenshots = []
+    for f in files:
+        content = await f.read()
+        encoded_screenshots.append({
+            "filename": f.filename,
+            "content_base64": base64.b64encode(content).decode("utf-8")
+        })
+
+    # Call the agent (which will fetch recent financial data internally)
+    pdf_path_or_url = run_graph_management_agent(
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        images=encoded_screenshots
+    )
+
+    return {
+        "success": True,
+        "message": "Financial report generated successfully",
+        "report_url": pdf_path_or_url
+    }
+    
+
+

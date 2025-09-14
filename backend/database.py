@@ -124,6 +124,8 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Error deleting graph {graph_id}: {e}")
             return False
+    
+    
 
 
 
