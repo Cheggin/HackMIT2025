@@ -38,7 +38,7 @@ const getHeatmapColor = (percentage: number): string => {
 
 export default function CohortHeatmap({ data }: CohortHeatmapProps) {
   const [hoveredCell, setHoveredCell] = useState<{ cohort: string; period: number } | null>(null);
-  const [selectedMetric, setSelectedMetric] = useState<'retention' | 'volume' | 'fraud'>('retention');
+  const [selectedMetric, setSelectedMetric] = useState<'retention' | 'volume' | 'fraud'>('volume');
 
   const cohortData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -67,7 +67,6 @@ export default function CohortHeatmap({ data }: CohortHeatmapProps) {
       // Calculate base metrics for this cohort
       const baseCount = baseCohortData.reduce((sum, item) => sum + (item.volume || item.count || 1), 0);
       const baseValue = baseCohortData.reduce((sum, item) => sum + (item.amount || item.value || 0), 0);
-      const baseFraudCount = baseCohortData.reduce((sum, item) => sum + (item.fraudCount || 0), 0);
 
       const cells: CohortCell[] = [];
 
@@ -151,7 +150,7 @@ export default function CohortHeatmap({ data }: CohortHeatmapProps) {
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-posthog-text-secondary whitespace-nowrap">Metric:</span>
           <div className="flex bg-posthog-bg-secondary rounded p-0.5">
-            {(['retention', 'volume', 'fraud'] as const).map(metric => (
+            {(['volume', 'retention', 'fraud'] as const).map(metric => (
               <button
                 key={metric}
                 onClick={() => setSelectedMetric(metric)}
@@ -161,8 +160,8 @@ export default function CohortHeatmap({ data }: CohortHeatmapProps) {
                     : 'text-posthog-text-secondary hover:text-posthog-text-primary'
                 }`}
               >
-                {metric === 'retention' && 'Activity'}
                 {metric === 'volume' && 'Volume'}
+                {metric === 'retention' && 'Activity'}
                 {metric === 'fraud' && 'Fraud'}
               </button>
             ))}
