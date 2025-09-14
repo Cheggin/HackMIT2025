@@ -5,7 +5,6 @@ import FinancialDataTable from './components/DataTable/FinancialDataTable';
 import ChartContainer from './components/Visualizations/ChartContainer';
 import ConstitutionToggle from './components/Controls/ConstitutionToggle';
 import SettingsPanel from './components/Controls/SettingsPanel';
-import Toast from './components/Toast';
 import { useFinancialData } from './hooks/useFinancialData';
 import type { Anomaly } from './types';
 
@@ -13,8 +12,8 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [constitutionMode, setConstitutionMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [updateFrequency, setUpdateFrequency] = useState(4000); // Update every 4 seconds for snappy updates matching chart speed
-  const [currentAnomaly, setCurrentAnomaly] = useState<Anomaly | null>(null);
+  const [updateFrequency, setUpdateFrequency] = useState(3000); // Update every 3 seconds
+  const [, setCurrentAnomaly] = useState<Anomaly | null>(null);
   const [fullscreenChart, setFullscreenChart] = useState<number | null>(null);
 
   const {

@@ -14,34 +14,41 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
   const [autoScroll, setAutoScroll] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [newEventIds, setNewEventIds] = useState<Map<string, number>>(new Map());
+  const [highlightedEventIds, setHighlightedEventIds] = useState<Set<string>>(new Set());
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const prevEventCountRef = useRef(0);
+  const prevEventIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
     // Skip tracking on initial load
     if (isInitialLoadRef.current) {
-      prevEventCountRef.current = events.length;
+      events.forEach(event => prevEventIdsRef.current.add(event.id));
       isInitialLoadRef.current = false;
       return;
     }
 
-    // Track new events only after initial load
-    if (events.length > prevEventCountRef.current) {
-      const newEventsCount = events.length - prevEventCountRef.current;
-      const newEvents = events.slice(-newEventsCount);
-      const newIdsMap = new Map<string, number>();
+    // Find new events by comparing IDs
+    const currentEventIds = new Set(events.map(e => e.id));
+    const newEvents: FinancialEvent[] = [];
 
-      // Create staggered delays for each new row
-      newEvents.forEach((event, index) => {
-        // Stagger by 100ms per row for snappier appearance
-        newIdsMap.set(event.id, index * 100);
+    events.forEach(event => {
+      if (!prevEventIdsRef.current.has(event.id)) {
+        newEvents.push(event);
+      }
+    });
+
+    // Track new events for animation
+    if (newEvents.length > 0) {
+      console.log(`Found ${newEvents.length} new events to animate`);
+
+      // Add new event IDs to highlighted set
+      const newHighlightedIds = new Set(highlightedEventIds);
+      newEvents.forEach(event => {
+        newHighlightedIds.add(event.id);
       });
-
-      setNewEventIds(newIdsMap);
+      setHighlightedEventIds(newHighlightedIds);
 
       // Smooth scroll after a short delay
       if (autoScroll && scrollContainerRef.current) {
@@ -50,17 +57,23 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
             top: 0,
             behavior: 'smooth'
           });
-        }, 300);
+        }, 100);
       }
 
-      // Clear the new event tracking after all animations complete
-      // Timeline: last row appears at 500ms, highlights for 2000ms, fades for 500ms
-      // Total: 500 + 2000 + 500 = 3000ms
+      // Remove from highlighted set after 2 seconds
       setTimeout(() => {
-        setNewEventIds(new Map());
-      }, 3500); // Clear after 3.5 seconds
+        setHighlightedEventIds(prev => {
+          const updated = new Set(prev);
+          newEvents.forEach(event => {
+            updated.delete(event.id);
+          });
+          return updated;
+        });
+      }, 2000);
     }
-    prevEventCountRef.current = events.length;
+
+    // Update the previous IDs reference
+    prevEventIdsRef.current = currentEventIds;
   }, [events, autoScroll]);
 
   const filteredEvents = events.filter((event: FinancialEvent) => {
@@ -239,15 +252,13 @@ export default function FinancialDataTable({ events, datasetInfo }: FinancialDat
             >
               {/* Render all rows without spacers */}
               {filteredEvents.slice(-100).reverse().map((event) => {
-                const animationDelay = newEventIds.get(event.id);
-                const isNewRow = animationDelay !== undefined;
+                const isHighlighted = highlightedEventIds.has(event.id);
 
                 return (
                   <DataRow
                     key={event.id}
                     event={event}
-                    isNew={isNewRow}
-                    animationDelay={animationDelay || 0}
+                    isHighlighted={isHighlighted}
                   />
                 );
               })}

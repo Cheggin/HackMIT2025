@@ -3,9 +3,11 @@ import type { FinancialEvent, Chart, ChartData } from '../types';
 export const CHART_TYPES = {
   LINE: 'line',
   BAR: 'bar',
-  HEATMAP: 'heatmap',
+  PIE: 'pie',
   SANKEY: 'sankey',
-  FUNNEL: 'funnel'
+  FUNNEL: 'funnel',
+  NETWORK3D: 'network3d',
+  COHORT_HEATMAP: 'cohort_heatmap'
 } as const;
 
 export type ChartType = typeof CHART_TYPES[keyof typeof CHART_TYPES];
@@ -67,6 +69,13 @@ export const constitutionRules: ConstitutionRules = {
       action: 'Use FUNNEL chart',
       priority: 5,
       justification: 'Funnel charts effectively display drop-off rates in sequential processes'
+    },
+    {
+      id: 'cohort_analysis',
+      condition: 'When analyzing user behavior over time by groups',
+      action: 'Use COHORT HEATMAP',
+      priority: 6,
+      justification: 'Cohort heatmaps reveal retention patterns and behavior trends across user segments'
     }
   ],
   anomalyThresholds: {
@@ -176,15 +185,49 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
     });
   }
 
-  // Add heatmap for location/time patterns
-  if (events.length > 20) {
-    const rule = constitutionRules.rules.find(r => r.id === 'density_pattern')!;
+  // Add pie chart for transaction type distribution
+  if (events.length > 5) {
     recommendations.push({
-      type: CHART_TYPES.HEATMAP,
-      title: 'Transaction Heatmap by Location and Time',
-      justification: `${rule.justification}. Analyzing ${events.length} transactions across multiple dimensions.`,
-      data: prepareHeatmapData(events),
+      type: CHART_TYPES.PIE,
+      title: 'Transaction Type Distribution',
+      justification: `Shows the proportion of different transaction types. Analyzing ${events.length} transactions.`,
+      data: preparePieData(events),
+      priority: 4
+    });
+  }
+
+  // Add Cohort Heatmap for retention analysis - high priority
+  if (events.length > 15) {
+    const cohortRule = constitutionRules.rules.find(r => r.id === 'cohort_analysis')!;
+    recommendations.push({
+      type: CHART_TYPES.COHORT_HEATMAP,
+      title: 'Cohort Retention Analysis',
+      justification: `${cohortRule.justification}. Analyzing ${events.length} transactions across time-based cohorts to identify retention and behavior patterns.`,
+      data: prepareCohortData(events),
       priority: 3
+    });
+  }
+
+  // Add Sankey for flow analysis
+  if (events.length > 10) {
+    const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
+    recommendations.push({
+      type: CHART_TYPES.SANKEY,
+      title: 'Transaction Flow Analysis',
+      justification: `${rule.justification}. Visualizing money flow between ${Object.keys(characteristics.hasCategoricalBreakdown).length} transaction types.`,
+      data: prepareSankeyData(events),
+      priority: 5
+    });
+  }
+
+  // Add Network3D for advanced visualization - lower priority
+  if (events.length > 15) {
+    recommendations.push({
+      type: CHART_TYPES.NETWORK3D,
+      title: '3D Network Visualization',
+      justification: `Interactive 3D visualization showing account relationships and transaction flows. Analyzing ${events.length} transactions across multiple accounts.`,
+      data: prepareNetworkData(events),
+      priority: 5
     });
   }
 
@@ -198,18 +241,6 @@ export function recommendCharts(events: FinancialEvent[], maxCharts: number = 4)
     priority: 4
   });
 
-  // Add Sankey for flow analysis
-  if (Object.keys(characteristics.hasCategoricalBreakdown).length > 2 &&
-      Object.keys(characteristics.hasFlowPatterns).length > 1) {
-    const rule = constitutionRules.rules.find(r => r.id === 'flow_analysis')!;
-    recommendations.push({
-      type: CHART_TYPES.SANKEY,
-      title: 'Transaction Flow Analysis',
-      justification: `${rule.justification}. Visualizing flows between ${Object.keys(characteristics.hasCategoricalBreakdown).length} event types and ${Object.keys(characteristics.hasFlowPatterns).length} statuses.`,
-      data: prepareSankeyData(events),
-      priority: 5
-    });
-  }
 
   return recommendations.slice(0, maxCharts).sort((a, b) => a.priority - b.priority);
 }
@@ -285,27 +316,96 @@ function prepareCategoricalData(events: FinancialEvent[]): ChartData[] {
   });
 }
 
-function prepareHeatmapData(events: FinancialEvent[]): ChartData[] {
-  const heatmapData: ChartData[] = [];
-  const locations = [...new Set(events.map(e => e.location))];
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+function prepareNetworkData(events: FinancialEvent[]): ChartData[] {
+  // Prepare data for 3D network visualization
+  // Group by account relationships and include fraud indicators
+  const accountMap = new Map<string, ChartData>();
 
-  locations.forEach(location => {
-    hours.forEach(hour => {
-      const matchingEvents = events.filter(e => {
-        const eventHour = new Date(e.timestamp).getHours();
-        return e.location === location && eventHour === hour;
-      });
+  events.forEach(event => {
+    // Source account node
+    if (event.sourceAccount) {
+      if (!accountMap.has(event.sourceAccount)) {
+        accountMap.set(event.sourceAccount, {
+          name: event.sourceAccount,
+          count: 0,
+          value: 0,
+          fraudCount: 0,
+          fraudRate: 0
+        });
+      }
+      const sourceData = accountMap.get(event.sourceAccount)!;
+      sourceData.count! += 1;
+      sourceData.value! += event.amount;
+      if (event.isFraud) sourceData.fraudCount! += 1;
+    }
 
-      heatmapData.push({
-        location,
-        hour,
-        value: matchingEvents.reduce((sum, e) => sum + e.amount, 0)
-      });
-    });
+    // Destination account node
+    if (event.destAccount) {
+      if (!accountMap.has(event.destAccount)) {
+        accountMap.set(event.destAccount, {
+          name: event.destAccount,
+          count: 0,
+          value: 0,
+          fraudCount: 0,
+          fraudRate: 0
+        });
+      }
+      const destData = accountMap.get(event.destAccount)!;
+      destData.count! += 1;
+      destData.value! += event.amount;
+      if (event.isFraud) destData.fraudCount! += 1;
+    }
   });
 
-  return heatmapData;
+  // Calculate fraud rates
+  accountMap.forEach(data => {
+    if (data.count! > 0) {
+      data.fraudRate = (data.fraudCount! / data.count!) * 100;
+    }
+  });
+
+  // Also include transaction-level data for edges
+  const transactionData = events.slice(-50).map(event => ({
+    name: `${event.transactionType}: $${event.amount.toFixed(0)}`,
+    count: 1,
+    value: event.amount,
+    fraudCount: event.isFraud ? 1 : 0,
+    fraudRate: event.isFraud ? 100 : 0
+  }));
+
+  return [...Array.from(accountMap.values()), ...transactionData];
+}
+
+function preparePieData(events: FinancialEvent[]): ChartData[] {
+  // Group events by transaction type
+  const typeGroups = events.reduce((acc, event) => {
+    const type = event.transactionType || 'Unknown';
+    if (!acc[type]) {
+      acc[type] = {
+        count: 0,
+        totalAmount: 0,
+        fraudCount: 0
+      };
+    }
+    acc[type].count++;
+    acc[type].totalAmount += event.amount;
+    if (event.isFraud) {
+      acc[type].fraudCount++;
+    }
+    return acc;
+  }, {} as Record<string, { count: number; totalAmount: number; fraudCount: number }>);
+
+  // Convert to chart data format
+  const pieData: ChartData[] = Object.entries(typeGroups).map(([type, data]) => ({
+    name: type,
+    count: data.count,
+    value: data.totalAmount,
+    fraudCount: data.fraudCount,
+    fraudRate: data.count > 0 ? (data.fraudCount / data.count) * 100 : 0
+  }));
+
+  // Sort by count descending
+  return pieData.sort((a, b) => (b.count || 0) - (a.count || 0));
 }
 
 function prepareFunnelData(events: FinancialEvent[]): ChartData[] {
@@ -340,4 +440,36 @@ function prepareSankeyData(events: FinancialEvent[]): ChartData[] {
   });
 
   return Object.values(flows);
+}
+
+function prepareCohortData(events: FinancialEvent[]): ChartData[] {
+  // Prepare data for cohort heatmap visualization
+  // We'll create synthetic cohort data from the event stream
+  const cohortData: ChartData[] = [];
+
+  if (events.length === 0) return cohortData;
+
+  // Create cohorts based on event timestamps
+  // Group events into minute-based cohorts for real-time analysis
+  const minuteSpan = 60000; // 1 minute in milliseconds
+
+  events.forEach(event => {
+    const eventTime = new Date(event.timestamp);
+    const minuteBucket = Math.floor(eventTime.getTime() / minuteSpan) * minuteSpan;
+
+    // Create a data point for each event with cohort information
+    cohortData.push({
+      time: eventTime.toLocaleTimeString(),
+      timestamp: minuteBucket,
+      count: 1,
+      volume: 1,
+      value: event.amount,
+      amount: event.amount,
+      fraudCount: event.isFraud ? 1 : 0,
+      name: `Transaction ${event.transactionType}`,
+      fraudRate: event.isFraud ? 100 : 0
+    });
+  });
+
+  return cohortData;
 }

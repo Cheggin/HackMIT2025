@@ -4,13 +4,12 @@ import {
   initializeSupabaseConnection,
   fetchInitialTransactions,
   fetchNewTransactions,
-  detectSupabaseAnomaly,
-  subscribeToTransactions
+  detectSupabaseAnomaly
 } from '../utils/supabaseDataLoader';
 import type { FinancialEvent, Chart, Anomaly, DatasetInfo } from '../types';
 
 const CHART_WINDOW_SIZE = 100; // Process only last 100 events for charts (for sliding window)
-const TABLE_HISTORY_SIZE = 200; // Keep last 200 events in table
+const TABLE_HISTORY_SIZE = 500; // Keep last 500 events in table (increased for better history)
 
 interface UseFinancialDataReturn {
   events: FinancialEvent[];
@@ -25,7 +24,7 @@ interface UseFinancialDataReturn {
   updateFrequencyRate: (newFrequency: number) => void;
 }
 
-export function useFinancialData(updateFrequency: number = 4000): UseFinancialDataReturn { // Default to 4s for fast, snappy updates
+export function useFinancialData(updateFrequency: number = 3000): UseFinancialDataReturn { // Default to 3s updates
   const [events, setEvents] = useState<FinancialEvent[]>([]);
   const [chartData, setChartData] = useState<FinancialEvent[]>([]); // Separate state for chart processing
   const [charts, setCharts] = useState<Chart[]>([]);
@@ -41,26 +40,40 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
   const [isLoading, setIsLoading] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const updateCounterRef = useRef(0);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const lastFetchTimeRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
-  const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false) => {
-    // Always update charts on initial load or when we have enough data
-    if (forceUpdate || data.length > 0) {
+  const updateCharts = useCallback((data: FinancialEvent[], forceUpdate = false, eventCount = 1) => {
+    // Force update on initial load
+    if (forceUpdate) {
       const recommendations = recommendCharts(data, 4);
       setCharts(recommendations);
       updateCounterRef.current = 0;
-    } else {
-      // Update charts every 3 new events for smoother sliding window
-      updateCounterRef.current++;
-      if (updateCounterRef.current >= 3) {
-        const recommendations = recommendCharts(data, 4);
-        setCharts(recommendations);
-        updateCounterRef.current = 0;
-      }
+      return;
+    }
+
+    // Accumulate event count
+    updateCounterRef.current += eventCount;
+
+    // Only update when we have exactly 3 or more events
+    if (updateCounterRef.current >= 3) {
+      console.log(`Updating charts with ${updateCounterRef.current} accumulated events`);
+      const recommendations = recommendCharts(data, 4);
+      setCharts(recommendations);
+      updateCounterRef.current = 0;
     }
   }, []);
 
-  const addMultipleEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+
+  const addEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
+    console.log(`addEvents called with ${newEvents.length} events, isInitialLoad: ${isInitialLoad}`);
+
+    // Add all events at once but ensure they maintain order for animation
+    // Sort by timestamp to ensure proper sequencing
+    const sortedEvents = [...newEvents].sort((a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
     // Keep track of actually added events for anomaly detection and dataset info
     let actuallyAddedEvents: FinancialEvent[] = [];
 
@@ -68,9 +81,9 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
     setEvents(prevEvents => {
       // Filter out any duplicates based on ID
       const existingIds = new Set(prevEvents.map(e => e.id));
-      const uniqueNewEvents = newEvents.filter(e => !existingIds.has(e.id));
+      const uniqueNewEvents = sortedEvents.filter(e => !existingIds.has(e.id));
 
-      console.log(`Table: Filtered to ${uniqueNewEvents.length} unique events out of ${newEvents.length}`);
+      console.log(`Table: Filtered to ${uniqueNewEvents.length} unique events out of ${sortedEvents.length}`);
 
       if (uniqueNewEvents.length === 0) {
         return prevEvents; // No new events to add
@@ -85,15 +98,17 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
     setChartData(prevChartData => {
       // Filter out duplicates for chart data as well
       const existingChartIds = new Set(prevChartData.map(e => e.id));
-      const uniqueChartEvents = newEvents.filter(e => !existingChartIds.has(e.id));
+      const uniqueChartEvents = sortedEvents.filter(e => !existingChartIds.has(e.id));
 
-      console.log(`Chart: Filtered to ${uniqueChartEvents.length} unique events out of ${newEvents.length}`);
+      console.log(`Chart: Filtered to ${uniqueChartEvents.length} unique events out of ${sortedEvents.length}`);
 
       const updatedChartData = [...prevChartData, ...uniqueChartEvents];
       const windowedData = updatedChartData.slice(-CHART_WINDOW_SIZE);
 
-      // Update charts with the windowed data
-      updateCharts(windowedData, isInitialLoad);
+      // Only update charts if we have new events (not on duplicates)
+      if (uniqueChartEvents.length > 0) {
+        updateCharts(windowedData, isInitialLoad, uniqueChartEvents.length);
+      }
 
       return windowedData;
     });
@@ -118,18 +133,6 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
     }
   }, [updateCharts]);
 
-  const addEvents = useCallback((newEvents: FinancialEvent[], isInitialLoad = false) => {
-    console.log(`addEvents called with ${newEvents.length} events, isInitialLoad: ${isInitialLoad}`);
-
-    // Add all events at once but ensure they maintain order for animation
-    // Sort by timestamp to ensure proper sequencing
-    const sortedEvents = [...newEvents].sort((a, b) =>
-      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-
-    addMultipleEvents(sortedEvents, isInitialLoad);
-  }, [addMultipleEvents]);
-
   const startDataStream = useCallback(async () => {
     if (intervalRef.current) return;
 
@@ -150,13 +153,32 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
         addEvents(initialTransactions, true); // Pass true for initial load
       }
 
-      // Set up polling for new transactions
+      // Set up polling for new transactions with debouncing
       intervalRef.current = setInterval(async () => {
+        // Prevent concurrent fetches
+        if (isFetchingRef.current) {
+          console.log('Skipping fetch - already fetching');
+          return;
+        }
+
+        // Debounce: ensure minimum time between fetches
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTimeRef.current;
+        if (timeSinceLastFetch < 2500) { // Minimum 2.5 seconds between fetches
+          console.log(`Skipping fetch - only ${timeSinceLastFetch}ms since last fetch`);
+          return;
+        }
+
+        isFetchingRef.current = true;
+        lastFetchTimeRef.current = now;
+
         const newTransactions = await fetchNewTransactions();
         if (newTransactions.length > 0) {
-          console.log('Polling: Adding', newTransactions.length, 'events');
+          console.log(`Fetched ${newTransactions.length} events at ${new Date().toISOString()}`);
           addEvents(newTransactions);
         }
+
+        isFetchingRef.current = false;
       }, updateFrequency);
 
       // Comment out real-time subscription to avoid duplicates
@@ -174,7 +196,7 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
       setIsConnected(false);
       setIsLoading(false);
     }
-  }, [updateFrequency, addEvents]);
+  }, [updateFrequency]);
 
   const stopDataStream = useCallback(() => {
     if (intervalRef.current) {
@@ -208,7 +230,7 @@ export function useFinancialData(updateFrequency: number = 4000): UseFinancialDa
     });
   }, []);
 
-  const updateFrequencyRate = useCallback((newFrequency: number) => {
+  const updateFrequencyRate = useCallback(() => {
     stopDataStream();
     setTimeout(() => {
       startDataStream();

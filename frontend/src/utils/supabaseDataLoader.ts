@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { FinancialEvent, Anomaly } from '../types';
 
-// Initialize Supabase client - you'll need to add these to your .env file
+// Configuration
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Database table interface matching your Supabase schema
+// Types
 interface TransactionRow {
   id: number;
   type: string;
@@ -26,17 +26,61 @@ interface TransactionRow {
   time: number;
 }
 
-// Track the last fetched timestamp and ID for continuous polling
-let lastFetchedTime: number | null = null;
-let lastFetchedId: number | null = null;
-let isInitialized = false;
-let totalRowCount = 0;
+interface PaginationState {
+  cursor: number | null;
+  hasMore: boolean;
+  totalCount: number;
+}
 
+interface FetchOptions {
+  limit?: number;
+  cursor?: number | null;
+  direction?: 'forward' | 'backward';
+}
+
+// State management
+class DataLoaderState {
+  private pagination: PaginationState = {
+    cursor: null,
+    hasMore: true,
+    totalCount: 0
+  };
+  
+  private isInitialized = false;
+
+  getPaginationState(): PaginationState {
+    return { ...this.pagination };
+  }
+
+  setPaginationState(state: Partial<PaginationState>): void {
+    this.pagination = { ...this.pagination, ...state };
+  }
+
+  isReady(): boolean {
+    return this.isInitialized;
+  }
+
+  setInitialized(value: boolean): void {
+    this.isInitialized = value;
+  }
+
+  reset(): void {
+    this.pagination = {
+      cursor: null,
+      hasMore: true,
+      totalCount: 0
+    };
+    this.isInitialized = false;
+  }
+}
+
+const state = new DataLoaderState();
+
+// Core data fetching functions
 export async function initializeSupabaseConnection(): Promise<boolean> {
   try {
-    // Test the connection - using public schema
-    const { data, error } = await supabase
-      .from('events')  // Using public schema
+    const { error } = await supabase
+      .from('events')
       .select('id')
       .limit(1);
 
@@ -45,7 +89,7 @@ export async function initializeSupabaseConnection(): Promise<boolean> {
       return false;
     }
 
-    isInitialized = true;
+    state.setInitialized(true);
     console.log('Supabase connected successfully');
     return true;
   } catch (error) {
@@ -54,131 +98,139 @@ export async function initializeSupabaseConnection(): Promise<boolean> {
   }
 }
 
-export async function fetchInitialTransactions(limit: number = 50): Promise<FinancialEvent[]> {
+export async function fetchTotalCount(): Promise<number> {
   try {
-    // Get total count of rows
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from('events')
       .select('*', { count: 'exact', head: true });
 
-    if (count) {
-      totalRowCount = count;
-    }
-
-    // Fetch the first batch of transactions
-    const { data, error } = await supabase
-      .from('events')  // Using public schema
-      .select('*')
-      .order('id', { ascending: true })
-      .limit(limit);
-
     if (error) {
-      console.error('Error fetching initial transactions:', error);
-      return [];
+      console.error('Error fetching total count:', error);
+      return 0;
     }
 
-    if (data && data.length > 0) {
-      // Update the last fetched ID and timestamp
-      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
-      lastFetchedTime = Math.max(...data.map((row: TransactionRow) => row.time));
-
-      // Convert and return with timestamps spaced 1 second apart for initial batch
-      const currentTime = Date.now();
-      return data
-        .map((row, index) => {
-          const event = convertSupabaseRowToEvent(row);
-          if (event) {
-            // Space initial events 1 second apart
-            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
-          }
-          return event;
-        })
-        .filter(Boolean) as FinancialEvent[];
-    }
-
-    return [];
+    const totalCount = count || 0;
+    state.setPaginationState({ totalCount });
+    return totalCount;
   } catch (error) {
-    console.error('Failed to fetch initial transactions:', error);
-    return [];
+    console.error('Failed to fetch total count:', error);
+    return 0;
   }
 }
 
-export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
-  if (lastFetchedId === null) {
-    // If we haven't fetched anything yet, get initial data
-    return fetchInitialTransactions();
-  }
+export async function fetchTransactions(options: FetchOptions = {}): Promise<{
+  data: FinancialEvent[];
+  pagination: PaginationState;
+}> {
+  const {
+    limit = 50,
+    cursor = null,
+    direction = 'forward'
+  } = options;
+
 
   try {
-    // Fetch next batch of transactions after the last fetched ID
     let query = supabase
       .from('events')
       .select('*')
-      .order('id', { ascending: true })
-      .limit(6); // Get 6 rows per update
+      .order('time', { ascending: direction === 'forward' })
+      .limit(limit);
 
-    // Get next rows after last fetched ID
-    query = query.gt('id', lastFetchedId);
+    // Apply cursor-based pagination
+    if (cursor !== null) {
+      if (direction === 'forward') {
+        query = query.gt('time', cursor);
+      } else {
+        query = query.lt('time', cursor);
+      }
+    }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching new transactions:', error);
-      return [];
+      console.error('Error fetching transactions:', error);
+      return { data: [], pagination: state.getPaginationState() };
     }
 
-    if (data && data.length > 0) {
-      // Update the last fetched ID
-      lastFetchedId = Math.max(...data.map((row: TransactionRow) => row.id));
-      console.log(`Fetched ${data.length} new transactions, IDs: ${data.map((r: TransactionRow) => r.id).join(', ')}`);
-
-      // Convert and return with timestamps spaced 1 second apart
-      const currentTime = Date.now();
-      return data
-        .map((row, index) => {
-          const event = convertSupabaseRowToEvent(row);
-          if (event) {
-            // Space events 1 second apart for clear separation
-            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
-          }
-          return event;
-        })
-        .filter(Boolean) as FinancialEvent[];
-    } else {
-      // If no more data, fetch from beginning but skip already fetched IDs
-      console.log('Reached end of data, cycling back to beginning');
-
-      const { data: firstBatch, error: firstError } = await supabase
-        .from('events')
-        .select('*')
-        .order('id', { ascending: true })
-        .limit(6);
-
-      if (firstError || !firstBatch || firstBatch.length === 0) {
-        return [];
-      }
-
-      // Update the last fetched ID to continue from here
-      lastFetchedId = Math.max(...firstBatch.map((row: TransactionRow) => row.id));
-
-      const currentTime = Date.now();
-      return firstBatch
-        .map((row, index) => {
-          const event = convertSupabaseRowToEvent(row);
-          if (event) {
-            // Space events 1 second apart
-            event.timestamp = new Date(currentTime + (index * 1000)).toISOString();
-          }
-          return event;
-        })
-        .filter(Boolean) as FinancialEvent[];
+    if (!data || data.length === 0) {
+      state.setPaginationState({ hasMore: false });
+      return { data: [], pagination: state.getPaginationState() };
     }
+
+    // Convert to FinancialEvent objects
+    const events = data
+      .map(convertSupabaseRowToEvent)
+      .filter(Boolean) as FinancialEvent[];
+
+    // Update pagination state
+    const newCursor = direction === 'forward' 
+      ? Math.max(...data.map(row => row.time))
+      : Math.min(...data.map(row => row.time));
+
+    const hasMore = data.length === limit;
+    
+    state.setPaginationState({
+      cursor: newCursor,
+      hasMore
+    });
+
+    return {
+      data: events,
+      pagination: state.getPaginationState()
+    };
   } catch (error) {
-    console.error('Failed to fetch new transactions:', error);
-    return [];
+    console.error('Failed to fetch transactions:', error);
+    return { data: [], pagination: state.getPaginationState() };
   }
 }
 
+export async function fetchInitialTransactions(limit: number = 50): Promise<FinancialEvent[]> {
+  // Reset state for fresh start
+  state.reset();
+  
+  // Fetch total count
+  await fetchTotalCount();
+  
+  // Fetch initial data
+  const result = await fetchTransactions({ limit });
+  return result.data;
+}
+
+export async function fetchNextTransactions(limit: number = 50): Promise<FinancialEvent[]> {
+  const currentState = state.getPaginationState();
+  
+  if (!currentState.hasMore) {
+    console.log('No more data available');
+    return [];
+  }
+
+  const result = await fetchTransactions({
+    limit,
+    cursor: currentState.cursor,
+    direction: 'forward'
+  });
+
+  return result.data;
+}
+
+export async function fetchPreviousTransactions(limit: number = 50): Promise<FinancialEvent[]> {
+  const currentState = state.getPaginationState();
+  
+  if (!currentState.cursor) {
+    console.log('No previous data available');
+    return [];
+  }
+
+  const result = await fetchTransactions({
+    limit,
+    cursor: currentState.cursor,
+    direction: 'backward'
+  });
+
+  return result.data;
+}
+
+// Data transformation
 function convertSupabaseRowToEvent(row: TransactionRow): FinancialEvent | null {
   if (!row) return null;
 
@@ -212,7 +264,7 @@ function convertSupabaseRowToEvent(row: TransactionRow): FinancialEvent | null {
   // Use the actual timestamp from the database
   const timestamp = new Date(row.time);
 
-  // Create unique ID by combining row ID with timestamp to avoid duplicates
+  // Create unique ID
   const uniqueId = `TXN-${row.id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
   return {
@@ -221,10 +273,7 @@ function convertSupabaseRowToEvent(row: TransactionRow): FinancialEvent | null {
     eventType,
     amount: Math.abs(amount),
     currency: 'USD',
-    location: row.type === 'PAYMENT' ? 'Online' :
-              row.type === 'TRANSFER' ? 'Bank Transfer' :
-              row.type === 'CASH_OUT' ? 'ATM' :
-              row.type === 'CASH_IN' ? 'Branch' : 'Digital',
+    location: getLocationFromType(row.type),
     taxCategory: amount > 10000 ? 'Reportable' : 'Standard',
     status,
     transactionType: row.type,
@@ -245,6 +294,18 @@ function convertSupabaseRowToEvent(row: TransactionRow): FinancialEvent | null {
   };
 }
 
+function getLocationFromType(type: string): string {
+  const locationMap: Record<string, string> = {
+    'PAYMENT': 'Online',
+    'TRANSFER': 'Bank Transfer',
+    'CASH_OUT': 'ATM',
+    'CASH_IN': 'Branch',
+    'DEBIT': 'Digital'
+  };
+  return locationMap[type] || 'Digital';
+}
+
+// Anomaly detection
 export function detectSupabaseAnomaly(event: FinancialEvent): Anomaly[] {
   const anomalies: Anomaly[] = [];
 
@@ -296,7 +357,7 @@ export function detectSupabaseAnomaly(event: FinancialEvent): Anomaly[] {
   return anomalies;
 }
 
-// Subscribe to real-time updates (optional - for live data)
+// Real-time subscription
 export function subscribeToTransactions(callback: (event: FinancialEvent) => void) {
   const subscription = supabase
     .channel('events-channel')
@@ -316,12 +377,25 @@ export function subscribeToTransactions(callback: (event: FinancialEvent) => voi
     )
     .subscribe();
 
-  // Return unsubscribe function
   return () => {
     subscription.unsubscribe();
   };
 }
 
+// Utility functions
 export function getConnectionStatus(): boolean {
-  return isInitialized;
+  return state.isReady();
+}
+
+export function getPaginationState(): PaginationState {
+  return state.getPaginationState();
+}
+
+export function resetPagination(): void {
+  state.reset();
+}
+
+// Legacy compatibility (for existing code)
+export async function fetchNewTransactions(): Promise<FinancialEvent[]> {
+  return fetchNextTransactions(3);
 }

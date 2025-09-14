@@ -3,9 +3,11 @@ import { Maximize2, Minimize2, Download, ChevronDown, ChevronUp, Info } from 'lu
 import { clsx } from 'clsx';
 import LineChartWithHistory from './ChartTypes/LineChartWithHistory';
 import BarChartComponent from './ChartTypes/BarChart';
-import HeatmapComponent from './ChartTypes/HeatmapChart';
+import PieChartComponent from './ChartTypes/PieChart';
+import NetworkGraph3D from './ChartTypes/NetworkGraph3D';
 import SankeyComponent from './ChartTypes/SankeyChart';
 import FunnelComponent from './ChartTypes/FunnelChart';
+import CohortHeatmap from './ChartTypes/CohortHeatmap';
 import { CHART_TYPES } from '../../utils/chartRecommendationEngine';
 import type { Chart, ChartData } from '../../types';
 
@@ -19,9 +21,11 @@ interface ChartContainerProps {
 const chartComponents: Record<string, React.ComponentType<{ data: ChartData[] }>> = {
   [CHART_TYPES.LINE]: LineChartWithHistory, // Use the new component with history
   [CHART_TYPES.BAR]: BarChartComponent,
-  [CHART_TYPES.HEATMAP]: HeatmapComponent,
+  [CHART_TYPES.PIE]: PieChartComponent,
+  [CHART_TYPES.NETWORK3D]: NetworkGraph3D,
   [CHART_TYPES.SANKEY]: SankeyComponent,
   [CHART_TYPES.FUNNEL]: FunnelComponent,
+  [CHART_TYPES.COHORT_HEATMAP]: CohortHeatmap,
 };
 
 export default function ChartContainer({ chart, isFullscreen, onToggleFullscreen, constitutionMode }: ChartContainerProps) {
